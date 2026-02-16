@@ -1,5 +1,6 @@
 import {
   isRouteErrorResponse,
+  Link,
   Links,
   Meta,
   Outlet,
@@ -7,6 +8,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { TooltipProvider } from "~/components/ui/tooltip";
 import type { Route } from "./+types/root";
 import "./app.css";
 
@@ -33,7 +35,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
+        <TooltipProvider>
+          <header className="border-b">
+            <div className="container mx-auto px-4 h-14 flex items-center gap-6">
+              <Link to="/" className="text-lg font-bold tracking-tight">
+                ProofCheck
+              </Link>
+              <nav className="flex items-center gap-4 text-sm">
+                <Link
+                  to="/verify"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Verify
+                </Link>
+                <Link
+                  to="/batch"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Batch
+                </Link>
+                <Link
+                  to="/help"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Help
+                </Link>
+              </nav>
+            </div>
+          </header>
+          {children}
+        </TooltipProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -53,9 +84,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : "Error";
     details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
+      error.status === 404 ? "The requested page could not be found." : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;

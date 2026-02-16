@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["app/routes/**/*.{ts,tsx}", "workers/app.ts", "app/**/*.test.ts", "test/**/*.test.ts"],
+  "project": ["app/**/*.{ts,tsx}", "workers/**/*.ts", "test/**/*.ts"],
+  "ignore": ["app/routes/**/+types/**", "app/env.d.ts", "app/components/ui/**"],
+  "ignoreDependencies": ["shadcn", "tailwindcss", "tw-animate-css"],
+  "ignoreExportsUsedInFile": true
+}
