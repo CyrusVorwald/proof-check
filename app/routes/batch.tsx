@@ -372,16 +372,24 @@ export default function Batch() {
                       Step 2: Compare with Expected Data
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Optionally enter expected label data to compare against the extraction. Use
-                      the template to apply common data to all files.
+                      Optionally enter expected label data to compare against the extraction. You
+                      can populate the forms below in any combination of three ways: import a CSV,
+                      use the template to set shared fields, or edit each file individually.
                     </p>
                   </div>
 
                   <div>
                     <h4 className="text-base font-semibold mb-1">Import from CSV</h4>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Upload a CSV file with a "fileName" column and expected label data to
-                      auto-populate all forms.
+                      Upload a CSV with a <code className="bg-muted px-1 rounded">fileName</code>{" "}
+                      column matching your image file names, plus any of:{" "}
+                      <code className="bg-muted px-1 rounded">brandName</code>,{" "}
+                      <code className="bg-muted px-1 rounded">alcoholContent</code>,{" "}
+                      <code className="bg-muted px-1 rounded">netContents</code>,{" "}
+                      <code className="bg-muted px-1 rounded">classType</code>,{" "}
+                      <code className="bg-muted px-1 rounded">producerName</code>,{" "}
+                      <code className="bg-muted px-1 rounded">producerAddress</code>,{" "}
+                      <code className="bg-muted px-1 rounded">countryOfOrigin</code>.
                     </p>
                     <input
                       type="file"
@@ -416,8 +424,8 @@ export default function Batch() {
                   <div>
                     <h4 className="text-base font-semibold mb-1">Template Data</h4>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Fill in common label data, then click "Apply to All Files" to copy it to every
-                      file below.
+                      Fill in shared fields (e.g. producer name), then apply. This overwrites
+                      per-file data, so apply the template first and make per-file edits after.
                     </p>
                     <div ref={templateRef}>
                       <ApplicationForm optional namePrefix="__template" heading={false} />
