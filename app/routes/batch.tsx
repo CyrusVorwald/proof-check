@@ -6,6 +6,7 @@ import { BatchFileItem } from "~/components/batch-file-item";
 import { BatchResults } from "~/components/batch-results";
 import { BatchUpload, type FileEntry } from "~/components/batch-upload";
 import { HelpTip } from "~/components/help-tip";
+import type { SampleLabel } from "~/components/label-upload";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -29,6 +30,12 @@ import type {
   ExtractedLabel,
 } from "~/lib/types";
 import type { Route } from "./+types/batch";
+
+const SAMPLE_LABELS: SampleLabel[] = [
+  { label: "Beer", url: "/samples/beer.jpg", fileName: "beer.jpg" },
+  { label: "Bourbon", url: "/samples/bourbon.jpg", fileName: "bourbon.jpg" },
+  { label: "Wine", url: "/samples/wine.jpg", fileName: "wine.jpg" },
+];
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -332,7 +339,7 @@ export default function Batch() {
                     Upload label images and AI will read the text from them.
                   </p>
                 </div>
-                <BatchUpload files={files} onFilesChange={setFiles} />
+                <BatchUpload files={files} onFilesChange={setFiles} sampleLabels={SAMPLE_LABELS} />
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
@@ -343,7 +350,7 @@ export default function Batch() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sonnet">Claude Sonnet 4.5</SelectItem>
+                      <SelectItem value="sonnet">Claude Sonnet 4.6</SelectItem>
                       <SelectItem value="haiku">Claude Haiku 4.5</SelectItem>
                     </SelectContent>
                   </Select>

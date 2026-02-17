@@ -3,6 +3,7 @@ import { Form, useActionData, useNavigation } from "react-router";
 import { ApplicationForm } from "~/components/application-form";
 import { ExtractionSummary } from "~/components/extraction-summary";
 import { HelpTip } from "~/components/help-tip";
+import type { SampleLabel } from "~/components/label-upload";
 import { LabelUpload } from "~/components/label-upload";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -28,6 +29,12 @@ import type {
 } from "~/lib/types";
 import { arrayBufferToBase64 } from "~/lib/utils";
 import type { Route } from "./+types/verify";
+
+const SAMPLE_LABELS: SampleLabel[] = [
+  { label: "Beer", url: "/samples/beer.jpg", fileName: "beer.jpg" },
+  { label: "Bourbon", url: "/samples/bourbon.jpg", fileName: "bourbon.jpg" },
+  { label: "Wine", url: "/samples/wine.jpg", fileName: "wine.jpg" },
+];
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -191,7 +198,7 @@ export default function Verify() {
                     Upload a label image and AI will read the text from it.
                   </p>
                 </div>
-                <LabelUpload onFileChange={setHasFile} />
+                <LabelUpload onFileChange={setHasFile} sampleLabels={SAMPLE_LABELS} />
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
@@ -202,7 +209,7 @@ export default function Verify() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sonnet">Claude Sonnet 4.5</SelectItem>
+                      <SelectItem value="sonnet">Claude Sonnet 4.6</SelectItem>
                       <SelectItem value="haiku">Claude Haiku 4.5</SelectItem>
                     </SelectContent>
                   </Select>

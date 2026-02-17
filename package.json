@@ -13,9 +13,10 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "knip": "knip",
-    "test": "vitest run",
+    "test": "vitest run --exclude test/e2e-*.test.ts",
     "test:e2e": "vitest run test/e2e-extraction.test.ts",
-    "test:watch": "vitest"
+    "test:all": "vitest run",
+    "test:watch": "vitest --exclude test/e2e-*.test.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

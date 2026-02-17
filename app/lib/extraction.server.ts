@@ -19,8 +19,7 @@ export async function extractLabelData(
   const gatewayToken = gatewayUrl ? env.AI_GATEWAY_TOKEN : undefined;
 
   const anthropicBase = gatewayUrl ? `${gatewayUrl}/anthropic` : undefined;
-  const anthropicModel =
-    model === "haiku" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-5-20250929";
+  const anthropicModel = model === "haiku" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6";
   return extractWithClaude(
     imageBase64,
     mediaType,

@@ -7,7 +7,7 @@ export async function extractLabelData(
   apiKey: string,
   baseUrl = "https://api.anthropic.com",
   gatewayToken?: string,
-  model = "claude-sonnet-4-5-20250929",
+  model = "claude-sonnet-4-6",
 ): Promise<ExtractedLabel> {
   // Use raw fetch for Cloudflare Workers compatibility
   const headers: Record<string, string> = {

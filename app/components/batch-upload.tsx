@@ -1,5 +1,6 @@
-import { Upload, X } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import type { SampleLabel } from "~/components/label-upload";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 
@@ -19,13 +20,16 @@ let nextId = 0;
 export function BatchUpload({
   files,
   onFilesChange,
+  sampleLabels,
 }: {
   files: FileEntry[];
   onFilesChange: (files: FileEntry[]) => void;
+  sampleLabels?: SampleLabel[];
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [loadingSamples, setLoadingSamples] = useState(false);
 
   const addFiles = useCallback(
     (fileList: FileList) => {
@@ -96,7 +100,38 @@ export function BatchUpload({
     }
   };
 
-  const totalSizeMB = files.reduce((sum, f) => sum + f.file.size, 0) / (1024 * 1024);
+  const loadSamples = useCallback(
+    async (samples: SampleLabel[]) => {
+      setLoadingSamples(true);
+      setError(null);
+      try {
+        const entries: FileEntry[] = await Promise.all(
+          samples.map(async (sample) => {
+            const response = await fetch(sample.url);
+            const blob = await response.blob();
+            const file = new File([blob], sample.fileName, { type: blob.type });
+            return {
+              id: String(nextId++),
+              file,
+              preview: URL.createObjectURL(blob),
+            };
+          }),
+        );
+        onFilesChange([...files, ...entries]);
+      } catch {
+        setError("Failed to load sample images. Please try again.");
+      } finally {
+        setLoadingSamples(false);
+      }
+    },
+    [files, onFilesChange],
+  );
+
+  const totalSizeBytes = files.reduce((sum, f) => sum + f.file.size, 0);
+  const totalSizeLabel =
+    totalSizeBytes >= 1024 * 1024
+      ? `${(totalSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+      : `${(totalSizeBytes / 1024).toFixed(0)} KB`;
 
   return (
     <div className="space-y-3">
@@ -147,6 +182,54 @@ export function BatchUpload({
               JPG, PNG, or WebP (max {MAX_SIZE_MB}MB each, up to {MAX_FILES} files)
             </p>
           </div>
+          {files.length === 0 && sampleLabels && sampleLabels.length > 0 && (
+            <div
+              role="group"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              className="pt-3 mt-3 border-t border-muted-foreground/15"
+            >
+              <p className="text-xs text-muted-foreground mb-2">Or try sample labels:</p>
+              <div className="flex justify-center gap-3">
+                {sampleLabels.map((sample) => (
+                  <button
+                    key={sample.label}
+                    type="button"
+                    disabled={loadingSamples}
+                    onClick={() => loadSamples([sample])}
+                    className="group relative rounded-md overflow-hidden border border-muted-foreground/20 hover:border-primary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-muted/30"
+                  >
+                    <img src={sample.url} alt={sample.label} className="h-28 w-20 object-contain" />
+                    <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] py-0.5 leading-tight">
+                      {sample.label}
+                    </span>
+                    {loadingSamples && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Loader2 className="size-4 text-white animate-spin" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingSamples}
+                onClick={() => sampleLabels && loadSamples(sampleLabels)}
+                className="mt-3"
+              >
+                {loadingSamples ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load all samples"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -156,8 +239,7 @@ export function BatchUpload({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {files.length} file{files.length !== 1 ? "s" : ""} selected ({totalSizeMB.toFixed(1)}{" "}
-              MB total)
+              {files.length} file{files.length !== 1 ? "s" : ""} selected ({totalSizeLabel} total)
             </p>
             <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
               Clear all

@@ -1,4 +1,4 @@
-import { Upload, X } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
@@ -7,16 +7,24 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE_MB = 5;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-interface LabelUploadProps {
-  onFileChange?: (hasFile: boolean) => void;
+export interface SampleLabel {
+  label: string;
+  url: string;
+  fileName: string;
 }
 
-export function LabelUpload({ onFileChange }: LabelUploadProps) {
+interface LabelUploadProps {
+  onFileChange?: (hasFile: boolean) => void;
+  sampleLabels?: SampleLabel[];
+}
+
+export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [loadingSample, setLoadingSample] = useState<string | null>(null);
 
   const validateAndSetFile = useCallback(
     (file: File | null) => {
@@ -83,6 +91,26 @@ export function LabelUpload({ onFileChange }: LabelUploadProps) {
     onFileChange?.(false);
   };
 
+  const selectSample = async (sample: SampleLabel) => {
+    setLoadingSample(sample.label);
+    setError(null);
+    try {
+      const response = await fetch(sample.url);
+      const blob = await response.blob();
+      const file = new File([blob], sample.fileName, { type: blob.type });
+      if (inputRef.current) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        inputRef.current.files = dt.files;
+      }
+      validateAndSetFile(file);
+    } catch {
+      setError("Failed to load sample image. Please try again.");
+    } finally {
+      setLoadingSample(null);
+    }
+  };
+
   return (
     <div className="space-y-2">
       <Label>
@@ -118,7 +146,6 @@ export function LabelUpload({ onFileChange }: LabelUploadProps) {
           accept=".jpg,.jpeg,.png,.webp"
           onChange={handleChange}
           className="hidden"
-          required
         />
 
         {preview ? (
@@ -151,6 +178,41 @@ export function LabelUpload({ onFileChange }: LabelUploadProps) {
                 JPG, PNG, or WebP (max {MAX_SIZE_MB}MB)
               </p>
             </div>
+            {sampleLabels && sampleLabels.length > 0 && (
+              <div
+                role="group"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="pt-3 mt-3 border-t border-muted-foreground/15"
+              >
+                <p className="text-xs text-muted-foreground mb-2">Or try a sample label:</p>
+                <div className="flex justify-center gap-3">
+                  {sampleLabels.map((sample) => (
+                    <button
+                      key={sample.label}
+                      type="button"
+                      disabled={loadingSample !== null}
+                      onClick={() => selectSample(sample)}
+                      className="group relative rounded-md overflow-hidden border border-muted-foreground/20 hover:border-primary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-muted/30"
+                    >
+                      <img
+                        src={sample.url}
+                        alt={sample.label}
+                        className="h-28 w-20 object-contain"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] py-0.5 leading-tight">
+                        {sample.label}
+                      </span>
+                      {loadingSample === sample.label && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <Loader2 className="size-4 text-white animate-spin" />
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
