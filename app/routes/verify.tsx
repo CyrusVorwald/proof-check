@@ -203,7 +203,7 @@ export default function Verify() {
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
-                    <HelpTip text="Haiku is fast (~4s) and recommended for most labels. Sonnet is more accurate (~8s) for hard-to-read or complex labels." />
+                    <HelpTip text="Haiku is fast and recommended for most labels. Sonnet is more accurate for hard-to-read or complex labels." />
                   </label>
                   <Select name="model" defaultValue="haiku">
                     <SelectTrigger className="w-full">

@@ -263,11 +263,11 @@ export default function Help() {
               <CardContent className="text-sm text-muted-foreground space-y-2">
                 <ul className="list-disc list-inside space-y-1">
                   <li>
-                    <strong>Sonnet</strong> — More accurate but slower (~8s). Best for final
+                    <strong>Sonnet</strong> — More accurate but slower. Best for final
                     verification and difficult-to-read labels.
                   </li>
                   <li>
-                    <strong>Haiku</strong> — Faster (~4s) but may miss some details. Good for quick
+                    <strong>Haiku</strong> — Faster but may miss some details. Good for quick
                     checks and batch processing.
                   </li>
                 </ul>
