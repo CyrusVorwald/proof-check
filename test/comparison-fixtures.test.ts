@@ -54,6 +54,7 @@ function makeExtractedLabel(overrides: Partial<ExtractedLabel> = {}): ExtractedL
     governmentWarning: STANDARD_GOV_WARNING,
     governmentWarningAllCaps: null,
     governmentWarningBold: null,
+    beverageType: "beer",
     isAlcoholLabel: true,
     imageQuality: "good",
     confidence: 0.95,
@@ -71,6 +72,7 @@ function extractedFromRow(row: string[], overrides: Partial<ExtractedLabel> = {}
     producerName: row[COL.producerName] || null,
     producerAddress: row[COL.producerAddress] || null,
     countryOfOrigin: row[COL.countryOfOrigin] || null,
+    beverageType: (row[COL.beverageType] as BeverageType) || null,
     ...overrides,
   });
 }

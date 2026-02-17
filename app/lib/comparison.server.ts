@@ -105,6 +105,33 @@ function compareBrandName(expected: string, extracted: string | null): FieldResu
   return result;
 }
 
+function compareBeverageType(expected: string, extracted: string | null): FieldResult {
+  const result: FieldResult = {
+    name: "Beverage Type",
+    key: "beverageType",
+    extracted,
+    expected,
+    status: "match",
+    explanation: "",
+  };
+
+  if (!extracted) {
+    result.status = "not_found";
+    result.explanation = "Beverage type could not be determined from label";
+    return result;
+  }
+
+  if (normalize(expected) === normalize(extracted)) {
+    result.status = "match";
+    result.explanation = "Beverage type matches";
+  } else {
+    result.status = "mismatch";
+    result.explanation = `Expected "${expected}", found "${extracted}"`;
+  }
+
+  return result;
+}
+
 function compareClassType(expected: string, extracted: string | null): FieldResult {
   const result: FieldResult = {
     name: "Class/Type",
@@ -225,15 +252,12 @@ function compareAlcoholContent(expected: string, extracted: string | null): Fiel
 
   const diff = Math.abs(expectedParsed.abv - extractedParsed.abv);
 
-  if (diff <= 0.05) {
+  if (diff < 0.001) {
     result.status = "match";
     result.explanation = `Alcohol content matches (${extractedParsed.abv}% ABV)`;
-  } else if (diff <= 0.3) {
-    result.status = "warning";
-    result.explanation = `Close match: expected ${expectedParsed.abv}%, found ${extractedParsed.abv}% (diff: ${diff.toFixed(2)}%)`;
   } else {
     result.status = "mismatch";
-    result.explanation = `Expected ${expectedParsed.abv}%, found ${extractedParsed.abv}% (diff: ${diff.toFixed(2)}%)`;
+    result.explanation = `Expected ${expectedParsed.abv}% ABV, found ${extractedParsed.abv}% ABV`;
   }
 
   result.normalization = {
@@ -314,7 +338,7 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
 
   const diff = Math.abs(expectedParsed.valueMl - extractedParsed.valueMl);
 
-  if (diff < 0.5) {
+  if (diff < 0.01) {
     result.status = "match";
     result.explanation = `Net contents match (${extractedParsed.valueMl.toFixed(1)} mL)`;
   } else {
@@ -431,10 +455,10 @@ function compareProducerAddress(expected: string, extracted: string | null): Fie
     result.status = "match";
     result.explanation = "Producer address matches";
   } else {
-    // Check if all key parts are present (order-independent)
+    // Check if all key parts are present (order-independent, word-level matching)
     const expectedParts = normExpected.split(" ").filter((p) => p.length > 1);
-    const extractedStr = normExtracted;
-    const missingParts = expectedParts.filter((part) => !extractedStr.includes(part));
+    const extractedWords = new Set(normExtracted.split(" "));
+    const missingParts = expectedParts.filter((part) => !extractedWords.has(part));
 
     if (missingParts.length === 0) {
       result.status = "match";
@@ -549,6 +573,10 @@ export function compareFields(
   processingTimeMs: number,
 ): VerificationResult {
   const fields: FieldResult[] = [];
+
+  if (expected.beverageType) {
+    fields.push(compareBeverageType(expected.beverageType, extracted.beverageType));
+  }
 
   if (expected.brandName) {
     fields.push(compareBrandName(expected.brandName, extracted.brandName));

@@ -95,7 +95,7 @@ async function handleExtract(
   const imageBase64 = arrayBufferToBase64(arrayBuffer);
   const mediaType = file.type as "image/jpeg" | "image/png" | "image/webp";
 
-  const model = (formData.get("model") as ModelChoice) || "sonnet";
+  const model = (formData.get("model") as ModelChoice) || "haiku";
   const extractedLabel = await extractLabelData(
     imageBase64,
     mediaType,
@@ -202,9 +202,9 @@ export default function Verify() {
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
-                    <HelpTip text="Sonnet is more accurate but slower (~8s). Haiku is faster (~4s) but may miss some details." />
+                    <HelpTip text="Haiku is fast (~4s) and recommended for most labels. Sonnet is more accurate (~8s) for hard-to-read or complex labels." />
                   </label>
-                  <Select name="model" defaultValue="sonnet">
+                  <Select name="model" defaultValue="haiku">
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>

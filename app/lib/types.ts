@@ -45,6 +45,7 @@ export interface ExtractedLabel {
   governmentWarning: string | null;
   governmentWarningAllCaps: boolean | null;
   governmentWarningBold: boolean | null;
+  beverageType: BeverageType | null;
   isAlcoholLabel: boolean;
   imageQuality: "good" | "fair" | "poor";
   confidence: number;

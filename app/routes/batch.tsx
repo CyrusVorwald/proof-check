@@ -156,6 +156,9 @@ export default function Batch() {
   const [csvWarnings, setCsvWarnings] = useState<string[]>([]);
   const [templateVersion, setTemplateVersion] = useState(0);
 
+  // Track the last-used model for retries
+  const lastModelRef = useRef("haiku");
+
   // Extraction state (client-side progressive)
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<{
@@ -208,7 +211,8 @@ export default function Batch() {
 
     // Read model synchronously before any async work
     const formData = new FormData(e.currentTarget);
-    const model = (formData.get("model") as string) || "sonnet";
+    const model = (formData.get("model") as string) || "haiku";
+    lastModelRef.current = model;
 
     // Reset state
     setExtractResults([]);
@@ -288,6 +292,79 @@ export default function Batch() {
     setIsExtracting(false);
   }
 
+  async function handleRetryFailed() {
+    const failedItems = extractResults
+      .map((r) => ({ result: r, fileEntry: files.find((f) => f.id === r.fileId) }))
+      .filter(
+        (item): item is { result: BatchExtractItemResult; fileEntry: FileEntry } =>
+          !!item.result.error && !!item.fileEntry,
+      );
+
+    if (failedItems.length === 0) return;
+
+    setIsExtracting(true);
+    const model = lastModelRef.current;
+    const updatedResults = [...extractResults];
+    let completed = extractResults.filter((r) => !r.error).length;
+    const total = extractResults.length;
+    setExtractionProgress({ completed, total });
+
+    await processWithConcurrency(
+      failedItems,
+      CONCURRENCY_LIMIT,
+      async ({ result: failed, fileEntry }) => {
+        const startTime = Date.now();
+        const index = updatedResults.findIndex((r) => r.fileId === failed.fileId);
+
+        try {
+          const fd = new FormData();
+          fd.set("file", fileEntry.file);
+          fd.set("model", model);
+
+          const response = await fetch("/api/extract", { method: "POST", body: fd });
+
+          if (!response.ok) {
+            const errorData = (await response.json()) as { error?: string };
+            updatedResults[index] = {
+              ...failed,
+              processingTimeMs: Date.now() - startTime,
+              error: errorData.error || "Extraction failed",
+            };
+          } else {
+            const data = (await response.json()) as ExtractActionResult;
+            updatedResults[index] = {
+              fileName: failed.fileName,
+              fileId: failed.fileId,
+              extractedLabel: data.extractedLabel,
+              governmentWarningCheck: data.governmentWarningCheck,
+              processingTimeMs: data.processingTimeMs,
+            };
+          }
+        } catch (err) {
+          updatedResults[index] = {
+            ...failed,
+            processingTimeMs: Date.now() - startTime,
+            error: err instanceof Error ? err.message : "Failed to process image",
+          };
+        }
+
+        completed++;
+        setExtractResults([...updatedResults]);
+        setExtractionProgress({ completed, total });
+
+        const labels: Record<string, ExtractedLabel> = {};
+        for (const r of updatedResults) {
+          if (r.extractedLabel) {
+            labels[r.fileId] = r.extractedLabel;
+          }
+        }
+        setExtractedLabels(labels);
+      },
+    );
+
+    setIsExtracting(false);
+  }
+
   function handleCompareSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -343,9 +420,9 @@ export default function Batch() {
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
-                    <HelpTip text="Sonnet is more accurate but slower (~8s). Haiku is faster (~4s) but may miss some details." />
+                    <HelpTip text="Haiku is fast (~4s) and recommended for most labels. Sonnet is more accurate (~8s) for hard-to-read or complex labels." />
                   </label>
-                  <Select name="model" defaultValue="sonnet">
+                  <Select name="model" defaultValue="haiku">
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -533,7 +610,14 @@ export default function Batch() {
           )}
 
           {/* Extraction summary (shown progressively during and after extraction) */}
-          {hasExtractResults && <BatchExtractionSummary results={extractResults} />}
+          {hasExtractResults && (
+            <BatchExtractionSummary
+              results={extractResults}
+              onRetryFailed={
+                extractResults.some((r) => r.error) && !isExtracting ? handleRetryFailed : undefined
+              }
+            />
+          )}
 
           {/* Comparison results */}
           {!isSubmitting && actionData?.success && actionData.intent === "compare" && (

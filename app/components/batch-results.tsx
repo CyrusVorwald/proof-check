@@ -1,8 +1,9 @@
-import { AlertTriangle, CheckCircle, ChevronDown, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, ChevronDown, Download, XCircle } from "lucide-react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { VerificationResults } from "~/components/verification-results";
+import { generateResultsCSV } from "~/lib/csv";
 import type { BatchItemResult } from "~/lib/types";
 
 export function BatchResults({ results }: { results: BatchItemResult[] }) {
@@ -46,6 +47,25 @@ export function BatchResults({ results }: { results: BatchItemResult[] }) {
           </div>
         )}
       </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          const csv = generateResultsCSV(results);
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `proofcheck-results-${new Date().toISOString().slice(0, 10)}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }}
+      >
+        <Download className="size-4" />
+        Download Results CSV
+      </Button>
 
       {/* Individual results */}
       <div className="space-y-2">

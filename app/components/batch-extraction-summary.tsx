@@ -1,11 +1,17 @@
-import { CheckCircle, ChevronDown, XCircle } from "lucide-react";
+import { CheckCircle, ChevronDown, RefreshCw, XCircle } from "lucide-react";
 import { useState } from "react";
 import { ExtractionSummary } from "~/components/extraction-summary";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import type { BatchExtractItemResult } from "~/lib/types";
 
-export function BatchExtractionSummary({ results }: { results: BatchExtractItemResult[] }) {
+export function BatchExtractionSummary({
+  results,
+  onRetryFailed,
+}: {
+  results: BatchExtractItemResult[];
+  onRetryFailed?: () => void;
+}) {
   const successful = results.filter((r) => r.extractedLabel != null).length;
   const errors = results.filter((r) => r.error).length;
 
@@ -34,6 +40,13 @@ export function BatchExtractionSummary({ results }: { results: BatchExtractItemR
           </div>
         )}
       </div>
+
+      {onRetryFailed && errors > 0 && (
+        <Button type="button" variant="outline" size="sm" onClick={onRetryFailed}>
+          <RefreshCw className="size-4" />
+          Retry {errors} Failed
+        </Button>
+      )}
 
       {/* Individual results */}
       <div className="space-y-2">

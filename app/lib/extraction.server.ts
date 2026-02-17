@@ -13,7 +13,7 @@ export async function extractLabelData(
   imageBase64: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
   env: Env,
-  model: ModelChoice = "sonnet",
+  model: ModelChoice = "haiku",
 ): Promise<ExtractedLabel> {
   const gatewayUrl = env.AI_GATEWAY_URL;
   const gatewayToken = gatewayUrl ? env.AI_GATEWAY_TOKEN : undefined;

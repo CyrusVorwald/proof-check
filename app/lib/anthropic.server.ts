@@ -7,7 +7,7 @@ export async function extractLabelData(
   apiKey: string,
   baseUrl = "https://api.anthropic.com",
   gatewayToken?: string,
-  model = "claude-sonnet-4-6",
+  model = "claude-haiku-4-5-20251001",
 ): Promise<ExtractedLabel> {
   // Use raw fetch for Cloudflare Workers compatibility
   const headers: Record<string, string> = {
@@ -18,33 +18,48 @@ export async function extractLabelData(
   if (gatewayToken) {
     headers["cf-aig-authorization"] = `Bearer ${gatewayToken}`;
   }
-  const response = await fetch(`${baseUrl}/v1/messages`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType,
-                data: imageBase64,
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/v1/messages`, {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        max_tokens: 2048,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: imageBase64,
+                },
               },
-            },
-            {
-              type: "text",
-              text: EXTRACTION_PROMPT,
-            },
-          ],
-        },
-      ],
-    }),
-  });
+              {
+                type: "text",
+                text: EXTRACTION_PROMPT,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Label extraction timed out. Try again or switch to the faster Haiku model.");
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorBody = await response.text();

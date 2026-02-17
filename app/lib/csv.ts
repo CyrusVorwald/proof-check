@@ -1,4 +1,4 @@
-import type { ApplicationData } from "./types";
+import type { ApplicationData, BatchItemResult } from "./types";
 
 interface FileEntry {
   id: string;
@@ -208,4 +208,62 @@ export function mapCSVToApplicationData(rows: string[][], files: FileEntry[]): C
   }
 
   return { data, warnings };
+}
+
+const RESULT_FIELD_KEYS = [
+  "brandName",
+  "classType",
+  "alcoholContent",
+  "netContents",
+  "producerName",
+  "producerAddress",
+  "countryOfOrigin",
+  "governmentWarning",
+] as const;
+
+function escapeCSV(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Generate a CSV string from batch comparison results.
+ */
+export function generateResultsCSV(results: BatchItemResult[]): string {
+  const headers = [
+    "fileName",
+    "overallStatus",
+    ...RESULT_FIELD_KEYS.flatMap((key) => [`${key}_status`, `${key}_extracted`, `${key}_expected`]),
+    "confidence",
+    "imageQuality",
+    "processingTimeMs",
+    "error",
+  ];
+
+  const rows = [headers.map(escapeCSV).join(",")];
+
+  for (const item of results) {
+    const row: string[] = [
+      escapeCSV(item.fileName),
+      escapeCSV(item.result?.overallStatus ?? "error"),
+    ];
+
+    for (const key of RESULT_FIELD_KEYS) {
+      const field = item.result?.fields.find((f) => f.key === key);
+      row.push(escapeCSV(field?.status ?? ""));
+      row.push(escapeCSV(field?.extracted ?? ""));
+      row.push(escapeCSV(field?.expected ?? ""));
+    }
+
+    row.push(escapeCSV(String(item.result?.confidence ?? "")));
+    row.push(escapeCSV(item.result?.imageQuality ?? ""));
+    row.push(escapeCSV(String(item.result?.processingTimeMs ?? "")));
+    row.push(escapeCSV(item.error ?? ""));
+
+    rows.push(row.join(","));
+  }
+
+  return rows.join("\n");
 }

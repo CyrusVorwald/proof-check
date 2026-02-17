@@ -13,6 +13,7 @@ Return a JSON object with these exact fields:
   "governmentWarning": "The full government warning text exactly as printed on the label, or null. Include all prefixes, numbers, and special characters",
   "governmentWarningAllCaps": true/false if the 'GOVERNMENT WARNING:' prefix appears in ALL CAPS, or null if no warning found,
   "governmentWarningBold": true/false if the 'GOVERNMENT WARNING:' prefix specifically appears in a bolder/heavier typeface than the rest of the warning text, or null if no warning found or cannot determine,
+  "beverageType": "beer" | "wine" | "distilled_spirits" based on the class/type and label content, or null if cannot determine,
   "isAlcoholLabel": true/false whether this image is actually an alcohol beverage label,
   "imageQuality": "good" | "fair" | "poor" based on readability of text,
   "confidence": 0.0 to 1.0 overall confidence in the extraction accuracy,

@@ -11,7 +11,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const model = (formData.get("model") as ModelChoice) || "sonnet";
+    const model = (formData.get("model") as ModelChoice) || "haiku";
 
     if (!file || file.size === 0) {
       return Response.json({ error: "Please upload a label image." }, { status: 400 });

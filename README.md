@@ -7,7 +7,7 @@ AI-powered alcohol beverage label verification tool. Upload a label image, extra
 ## Tech Stack
 
 - **React Router v7** on **Cloudflare Workers** — server-side rendering at the edge with fast cold starts
-- **Claude AI (Anthropic)** — vision models for label text extraction (Sonnet for accuracy, Haiku for speed)
+- **Claude AI (Anthropic)** — vision models for label text extraction (Haiku for speed, Sonnet for accuracy)
 - **shadcn/ui + Tailwind CSS** — accessible component library for a clean, usable UI
 - **TypeScript** — end-to-end type safety
 - **Vitest** — unit testing
@@ -87,25 +87,25 @@ app/
 ### Verification Flow
 
 1. **Extract** — User uploads a label image. The server sends it to Claude which returns structured JSON with all label fields (brand name, ABV, net contents, government warning, etc.)
-2. **Compare** — User optionally enters expected application data. The server runs field-by-field comparison with smart normalization (ABV/Proof conversion, unit conversion, address abbreviation expansion).
+2. **Compare** — User optionally enters expected application data. The server runs field-by-field comparison with format normalization (ABV/Proof conversion, L/mL conversion, address abbreviation expansion).
 3. **Result** — Each field gets a status (match / warning / mismatch / not_found). Overall status is approved, needs_review, or rejected. Government warning compliance is always checked against the TTB standard text (27 CFR 16.21-16.22).
 
 ### Batch Processing
 
-The batch route supports uploading multiple label images at once with concurrency-limited parallel extraction. A template system lets users apply common expected data (e.g., same producer across all labels) to every file before comparing.
+The batch route supports uploading multiple label images at once with concurrency-limited parallel extraction. A template system lets users apply common expected data (e.g., same producer across all labels) to every file before comparing. Failed extractions can be retried without reprocessing the entire batch. Results can be downloaded as CSV for record-keeping.
 
 ## Approach and Assumptions
 
 - **Two-step flow**: Extract first, then compare. This lets users verify extraction quality before submitting application data, and makes extraction independently useful.
-- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
-- **Case-sensitive brand names with tolerance**: Exact match is preferred, but case-only differences (e.g., "STONE'S THROW" vs "Stone's Throw") produce a warning rather than a rejection, per Dave's feedback in the assessment.
+- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Net contents cross-convert between L and mL. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
+- **Case-sensitive brand names with tolerance**: Exact match is preferred, but case-only differences (e.g., "STONE'S THROW" vs "Stone's Throw") produce a warning rather than a rejection. Labels often use stylized casing that differs from the application form.
 - **Government warning compliance**: Checked against the exact TTB standard text. ALL CAPS and bold formatting for "GOVERNMENT WARNING:" are validated when the model can detect them.
-- **Model choice**: Users can choose Sonnet (more accurate) or Haiku (faster). Both use prompted JSON output via the Anthropic API.
+- **Model choice**: Users can choose Haiku (faster, default) or Sonnet (more accurate). Both use prompted JSON output via the Anthropic API. Haiku defaults to meet the ~5 second response time requirement.
 - **`beverageType` collected but unused**: The form collects beverage type for future use (TTB requirements vary by type), but current comparison logic doesn't branch on it.
 
 ## Trade-offs and Limitations
 
-- **No persistent storage**: Results exist only in the browser session. No database, no history. Appropriate for a prototype but would need storage for production.
+- **No persistent storage**: Results exist only in memory and clear on page refresh. Storing uploaded images in the browser (via IndexedDB) would add complexity without clear value for a prototype — the CSV export covers the need to save results. Production would need server-side storage.
 - **No COLA integration**: The app is a standalone tool, not integrated with TTB's COLA system. Users manually enter expected data.
 - **Bold detection is imprecise**: Vision models can detect ALL CAPS reliably but bold formatting detection from images is unreliable. The app flags explicit non-bold detection with a "verify manually" caveat.
 - **No image preprocessing**: Poor lighting, extreme angles, or glare may reduce extraction quality. The extraction reports an image quality rating and confidence score.

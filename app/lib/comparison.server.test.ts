@@ -25,6 +25,7 @@ function makeExtractedLabel(overrides: Partial<ExtractedLabel> = {}): ExtractedL
     governmentWarning: null,
     governmentWarningAllCaps: null,
     governmentWarningBold: null,
+    beverageType: "beer",
     isAlcoholLabel: true,
     imageQuality: "good",
     confidence: 0.95,
@@ -43,7 +44,7 @@ function makeApplicationData(overrides: Partial<ApplicationData> = {}): Applicat
     producerAddress: "",
     countryOfOrigin: "",
     governmentWarning: "",
-    beverageType: "beer",
+    beverageType: "" as ApplicationData["beverageType"],
     ...overrides,
   };
 }
@@ -200,7 +201,7 @@ describe("compareFields — brand name", () => {
     expect(field?.status).toBe("match");
   });
 
-  it("warns on case difference (Dave's STONE'S THROW scenario)", () => {
+  it("warns on case difference", () => {
     const app = makeApplicationData({ brandName: "Stone's Throw" });
     const label = makeExtractedLabel({ brandName: "STONE'S THROW" });
     const result = compareFields(app, label, 0);
@@ -403,5 +404,154 @@ describe("compareFields — overall status", () => {
     });
     const result = compareFields(app, label, 0);
     expect(result.overallStatus).toBe("needs_review");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — beverage type
+// ---------------------------------------------------------------------------
+
+describe("compareFields — beverage type", () => {
+  it("matches same beverage type", () => {
+    const app = makeApplicationData({ beverageType: "wine" });
+    const label = makeExtractedLabel({ beverageType: "wine" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "beverageType");
+    expect(field?.status).toBe("match");
+  });
+
+  it("mismatches different beverage type", () => {
+    const app = makeApplicationData({ beverageType: "beer" });
+    const label = makeExtractedLabel({ beverageType: "wine" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "beverageType");
+    expect(field?.status).toBe("mismatch");
+  });
+
+  it("returns not_found when AI cannot determine type", () => {
+    const app = makeApplicationData({ beverageType: "beer" });
+    const label = makeExtractedLabel({ beverageType: null });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "beverageType");
+    expect(field?.status).toBe("not_found");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — government warning case variations
+// ---------------------------------------------------------------------------
+
+describe("compareFields — government warning case variations", () => {
+  it("detects case differences in warning text", () => {
+    const app = makeApplicationData({
+      governmentWarning: STANDARD_GOV_WARNING,
+    });
+    const label = makeExtractedLabel({
+      governmentWarning: STANDARD_GOV_WARNING.toLowerCase(),
+      governmentWarningAllCaps: null,
+      governmentWarningBold: null,
+    });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "governmentWarning");
+    expect(field?.status).toBe("mismatch");
+    expect(field?.explanation).toContain("case differences");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — alcohol content exact matching
+// ---------------------------------------------------------------------------
+
+describe("compareFields — alcohol content exact matching", () => {
+  it("matches ABV to Proof cross-conversion exactly", () => {
+    const app = makeApplicationData({ alcoholContent: "80 Proof" });
+    const label = makeExtractedLabel({ alcoholContent: "40% ABV" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "alcoholContent");
+    expect(field?.status).toBe("match");
+  });
+
+  it("mismatches on real ABV difference", () => {
+    const app = makeApplicationData({ alcoholContent: "5% ABV" });
+    const label = makeExtractedLabel({ alcoholContent: "5.1% ABV" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "alcoholContent");
+    expect(field?.status).toBe("mismatch");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — net contents exact matching
+// ---------------------------------------------------------------------------
+
+describe("compareFields — net contents exact matching", () => {
+  it("mismatches on real volume difference", () => {
+    const app = makeApplicationData({ netContents: "750 mL" });
+    const label = makeExtractedLabel({ netContents: "751 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("mismatch");
+  });
+
+  it("matches cross-unit L to mL", () => {
+    const app = makeApplicationData({ netContents: "1.5 L" });
+    const label = makeExtractedLabel({ netContents: "1500 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("match");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — bare number inference escalation
+// ---------------------------------------------------------------------------
+
+describe("compareFields — bare number inference", () => {
+  it("escalates matching ABV bare number to warning", () => {
+    const app = makeApplicationData({ alcoholContent: "40" });
+    const label = makeExtractedLabel({ alcoholContent: "40% ABV" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "alcoholContent");
+    expect(field?.status).toBe("warning");
+    expect(field?.explanation).toContain("bare number");
+  });
+
+  it("escalates matching net contents bare number to warning", () => {
+    const app = makeApplicationData({ netContents: "750" });
+    const label = makeExtractedLabel({ netContents: "750 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("warning");
+    expect(field?.explanation).toContain("bare number");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — address word boundary matching
+// ---------------------------------------------------------------------------
+
+describe("compareFields — address word boundary matching", () => {
+  it("does not false-positive substring matches", () => {
+    const app = makeApplicationData({
+      producerAddress: "123 Main Street, Springfield, IL",
+    });
+    const label = makeExtractedLabel({
+      producerAddress: "456 Mainstream Blvd, Springfield, IL",
+    });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "producerAddress");
+    expect(field?.status).toBe("mismatch");
+  });
+
+  it("matches address with reordered words", () => {
+    const app = makeApplicationData({
+      producerAddress: "123 Main St, Springfield, IL 62701",
+    });
+    const label = makeExtractedLabel({
+      producerAddress: "Springfield, IL 62701, 123 Main Street",
+    });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "producerAddress");
+    expect(field?.status).toBe("match");
   });
 });
