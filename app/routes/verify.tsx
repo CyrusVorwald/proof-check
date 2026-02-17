@@ -27,6 +27,7 @@ import type {
   ExtractedLabel,
   VerifyActionResponse,
 } from "~/lib/types";
+import { ExtractedLabelSchema } from "~/lib/types";
 import { arrayBufferToBase64 } from "~/lib/utils";
 import type { Route } from "./+types/verify";
 
@@ -126,7 +127,7 @@ async function handleCompare(formData: FormData): Promise<VerifyActionResponse> 
 
   let extractedLabel: ExtractedLabel;
   try {
-    extractedLabel = JSON.parse(extractedLabelJson);
+    extractedLabel = ExtractedLabelSchema.parse(JSON.parse(extractedLabelJson));
   } catch {
     return { success: false, error: "Invalid extraction data." };
   }

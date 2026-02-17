@@ -285,7 +285,8 @@ export default function Help() {
                     <strong>Alcohol content:</strong> 40% ABV, 80 Proof, 40% Alc./Vol., or just "40"
                   </li>
                   <li>
-                    <strong>Net contents:</strong> 750 mL, 12 FL OZ, 1L, 1.75L, or just "750"
+                    <strong>Net contents:</strong> Compared as text (case-insensitive). Enter the
+                    value exactly as it appears on the label.
                   </li>
                   <li>
                     <strong>Addresses:</strong> Abbreviations like St, Ave, Blvd are expanded for

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useActionData, useNavigation, useSubmit } from "react-router";
+import { z } from "zod";
 import { ApplicationForm } from "~/components/application-form";
 import { BatchExtractionSummary } from "~/components/batch-extraction-summary";
 import { BatchFileItem } from "~/components/batch-file-item";
@@ -29,6 +30,7 @@ import type {
   ExtractActionResult,
   ExtractedLabel,
 } from "~/lib/types";
+import { ExtractedLabelSchema } from "~/lib/types";
 import type { Route } from "./+types/batch";
 
 const SAMPLE_LABELS: SampleLabel[] = [
@@ -106,7 +108,9 @@ async function handleBatchCompare(formData: FormData): Promise<BatchVerifyRespon
 
   let extractedLabels: Record<string, ExtractedLabel>;
   try {
-    extractedLabels = JSON.parse(extractedLabelsJson);
+    extractedLabels = z
+      .record(z.string(), ExtractedLabelSchema)
+      .parse(JSON.parse(extractedLabelsJson));
   } catch {
     return { success: false, error: "Invalid extraction data." };
   }

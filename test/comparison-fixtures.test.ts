@@ -145,18 +145,18 @@ describe("comparison with fixture data", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 3. Net contents cross-unit: "1.5 L" ↔ "1500 mL"
+  // 3. Net contents: text comparison (no unit conversion)
   // -----------------------------------------------------------------------
-  describe("net contents cross-unit", () => {
-    it('"1.5 L" expected vs "1500 mL" extracted → match', () => {
-      // Les Champs Libres has netContents "1.5 L" in the CSV
+  describe("net contents text comparison", () => {
+    it('"1.5 L" expected vs "1500 mL" extracted → mismatch (no cross-unit conversion)', () => {
+      // Net contents uses text comparison only — different formats are a mismatch
       const expected = makeApplicationData(validRows[2]);
       const extracted = extractedFromRow(validRows[2], {
         netContents: "1500 mL",
       });
       const result = compareFields(expected, extracted, 100);
 
-      expect(fieldStatus(result, "netContents")).toBe("match");
+      expect(fieldStatus(result, "netContents")).toBe("mismatch");
     });
   });
 

@@ -97,7 +97,7 @@ The batch route supports uploading multiple label images at once with concurrenc
 ## Approach and Assumptions
 
 - **Two-step flow**: Extract first, then compare. This lets users verify extraction quality before submitting application data, and makes extraction independently useful.
-- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Net contents cross-convert between L and mL. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
+- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Net contents are compared as text (case-insensitive) to verify the label matches the application exactly. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
 - **Case-sensitive brand names with tolerance**: Exact match is preferred, but case-only differences (e.g., "STONE'S THROW" vs "Stone's Throw") produce a warning rather than a rejection. Labels often use stylized casing that differs from the application form.
 - **Government warning compliance**: Checked against the exact TTB standard text. ALL CAPS and bold formatting for "GOVERNMENT WARNING:" are validated when the model can detect them.
 - **Model choice**: Users can choose Haiku (faster, default) or Sonnet (more accurate). Both use prompted JSON output via the Anthropic API. Haiku defaults to meet the ~5 second response time requirement.

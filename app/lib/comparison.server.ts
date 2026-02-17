@@ -6,7 +6,6 @@ import type {
   GovernmentWarningCheck,
   NormalizationNote,
   ParsedAlcoholContent,
-  ParsedNetContents,
   VerificationResult,
 } from "./types";
 
@@ -279,33 +278,6 @@ function compareAlcoholContent(expected: string, extracted: string | null): Fiel
   return result;
 }
 
-export function parseNetContents(value: string): ParsedNetContents {
-  const notes: NormalizationNote[] = [];
-  const trimmed = value.trim();
-
-  // Extract numeric value and unit
-  const unitMatch = trimmed.match(/(\d+(?:\.\d+)?)\s*(ml|mL|ML|l|L)s?\b/i);
-  if (unitMatch) {
-    const num = parseFloat(unitMatch[1]);
-    const unit = unitMatch[2].toLowerCase();
-    const valueMl = unit === "l" ? num * 1000 : num;
-    return { rawText: trimmed, valueMl, inferredFromBareNumber: false, notes };
-  }
-
-  // Bare number — treat as mL
-  const bareMatch = trimmed.match(/^(\d+(?:\.\d+)?)$/);
-  if (bareMatch) {
-    const num = parseFloat(bareMatch[1]);
-    notes.push({
-      text: `Interpreted '${trimmed}' as ${num} mL (no unit specified)`,
-      level: "caution",
-    });
-    return { rawText: trimmed, valueMl: num, inferredFromBareNumber: true, notes };
-  }
-
-  return { rawText: trimmed, valueMl: null, inferredFromBareNumber: false, notes };
-}
-
 function compareNetContents(expected: string, extracted: string | null): FieldResult {
   const result: FieldResult = {
     name: "Net Contents",
@@ -322,44 +294,12 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
     return result;
   }
 
-  const expectedParsed = parseNetContents(expected);
-  const extractedParsed = parseNetContents(extracted);
-
-  if (expectedParsed.valueMl === null || extractedParsed.valueMl === null) {
-    if (normalize(expected) === normalize(extracted)) {
-      result.status = "match";
-      result.explanation = "Net contents match (text comparison)";
-    } else {
-      result.status = "mismatch";
-      result.explanation = `Expected "${expected}", found "${extracted}"`;
-    }
-    return result;
-  }
-
-  const diff = Math.abs(expectedParsed.valueMl - extractedParsed.valueMl);
-
-  if (diff < 0.01) {
+  if (normalize(expected) === normalize(extracted)) {
     result.status = "match";
-    result.explanation = `Net contents match (${extractedParsed.valueMl.toFixed(1)} mL)`;
+    result.explanation = "Net contents match";
   } else {
     result.status = "mismatch";
-    result.explanation = `Expected ${expectedParsed.valueMl.toFixed(1)} mL, found ${extractedParsed.valueMl.toFixed(1)} mL`;
-  }
-
-  result.normalization = {
-    expectedParsed,
-    extractedParsed,
-    numericDiff: diff,
-    diffUnit: "mL",
-  };
-
-  // Bare number inference → minimum status is warning
-  if (
-    (expectedParsed.inferredFromBareNumber || extractedParsed.inferredFromBareNumber) &&
-    result.status === "match"
-  ) {
-    result.status = "warning";
-    result.explanation += " — needs review (unit inferred from bare number)";
+    result.explanation = `Expected "${expected}", found "${extracted}"`;
   }
 
   return result;

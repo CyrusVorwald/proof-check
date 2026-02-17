@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type BeverageType = "beer" | "wine" | "distilled_spirits";
 
 export type FieldStatus = "match" | "warning" | "mismatch" | "not_found";
@@ -15,13 +17,6 @@ export interface ParsedAlcoholContent {
   notes: NormalizationNote[];
 }
 
-export interface ParsedNetContents {
-  rawText: string;
-  valueMl: number | null;
-  inferredFromBareNumber: boolean;
-  notes: NormalizationNote[];
-}
-
 export interface ApplicationData {
   brandName: string;
   classType: string;
@@ -34,23 +29,25 @@ export interface ApplicationData {
   beverageType: BeverageType;
 }
 
-export interface ExtractedLabel {
-  brandName: string | null;
-  classType: string | null;
-  alcoholContent: string | null;
-  netContents: string | null;
-  producerName: string | null;
-  producerAddress: string | null;
-  countryOfOrigin: string | null;
-  governmentWarning: string | null;
-  governmentWarningAllCaps: boolean | null;
-  governmentWarningBold: boolean | null;
-  beverageType: BeverageType | null;
-  isAlcoholLabel: boolean;
-  imageQuality: "good" | "fair" | "poor";
-  confidence: number;
-  notes: string[];
-}
+export const ExtractedLabelSchema = z.object({
+  brandName: z.string().nullable(),
+  classType: z.string().nullable(),
+  alcoholContent: z.string().nullable(),
+  netContents: z.string().nullable(),
+  producerName: z.string().nullable(),
+  producerAddress: z.string().nullable(),
+  countryOfOrigin: z.string().nullable(),
+  governmentWarning: z.string().nullable(),
+  governmentWarningAllCaps: z.boolean().nullable(),
+  governmentWarningBold: z.boolean().nullable(),
+  beverageType: z.enum(["beer", "wine", "distilled_spirits"]).nullable(),
+  isAlcoholLabel: z.boolean(),
+  imageQuality: z.enum(["good", "fair", "poor"]),
+  confidence: z.number(),
+  notes: z.array(z.string()),
+});
+
+export type ExtractedLabel = z.infer<typeof ExtractedLabelSchema>;
 
 export interface FieldResult {
   name: string;
@@ -60,8 +57,8 @@ export interface FieldResult {
   status: FieldStatus;
   explanation: string;
   normalization?: {
-    expectedParsed?: ParsedAlcoholContent | ParsedNetContents;
-    extractedParsed?: ParsedAlcoholContent | ParsedNetContents;
+    expectedParsed?: ParsedAlcoholContent;
+    extractedParsed?: ParsedAlcoholContent;
     numericDiff?: number;
     diffUnit?: string;
   };

@@ -4,7 +4,6 @@ import {
   compareFields,
   normalizeAddress,
   parseAlcoholContent,
-  parseNetContents,
 } from "./comparison.server";
 import { STANDARD_GOV_WARNING } from "./constants";
 import type { ApplicationData, ExtractedLabel } from "./types";
@@ -97,31 +96,8 @@ describe("parseAlcoholContent", () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseNetContents
+// (parseNetContents removed — net contents uses text comparison only)
 // ---------------------------------------------------------------------------
-
-describe("parseNetContents", () => {
-  it("parses mL", () => {
-    const result = parseNetContents("750 mL");
-    expect(result.valueMl).toBe(750);
-  });
-
-  it("parses L and converts to mL", () => {
-    const result = parseNetContents("1.5 L");
-    expect(result.valueMl).toBe(1500);
-  });
-
-  it("parses bare number as mL", () => {
-    const result = parseNetContents("750");
-    expect(result.valueMl).toBe(750);
-    expect(result.inferredFromBareNumber).toBe(true);
-  });
-
-  it("returns null for unrecognized unit", () => {
-    const result = parseNetContents("five hundred millilitres");
-    expect(result.valueMl).toBeNull();
-  });
-});
 
 // ---------------------------------------------------------------------------
 // normalizeAddress
@@ -251,10 +227,26 @@ describe("compareFields — alcohol content", () => {
 });
 
 // ---------------------------------------------------------------------------
-// compareFields — net contents (cross-unit)
+// compareFields — net contents (text comparison)
 // ---------------------------------------------------------------------------
 
 describe("compareFields — net contents", () => {
+  it("matches identical net contents", () => {
+    const app = makeApplicationData({ netContents: "750 mL" });
+    const label = makeExtractedLabel({ netContents: "750 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("match");
+  });
+
+  it("matches case-insensitively", () => {
+    const app = makeApplicationData({ netContents: "12 FL OZ" });
+    const label = makeExtractedLabel({ netContents: "12 fl oz" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("match");
+  });
+
   it("mismatches different volumes", () => {
     const app = makeApplicationData({ netContents: "375 mL" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
@@ -481,26 +473,8 @@ describe("compareFields — alcohol content exact matching", () => {
 });
 
 // ---------------------------------------------------------------------------
-// compareFields — net contents exact matching
+// (net contents cross-unit tests removed — text comparison only)
 // ---------------------------------------------------------------------------
-
-describe("compareFields — net contents exact matching", () => {
-  it("mismatches on real volume difference", () => {
-    const app = makeApplicationData({ netContents: "750 mL" });
-    const label = makeExtractedLabel({ netContents: "751 mL" });
-    const result = compareFields(app, label, 0);
-    const field = result.fields.find((f) => f.key === "netContents");
-    expect(field?.status).toBe("mismatch");
-  });
-
-  it("matches cross-unit L to mL", () => {
-    const app = makeApplicationData({ netContents: "1.5 L" });
-    const label = makeExtractedLabel({ netContents: "1500 mL" });
-    const result = compareFields(app, label, 0);
-    const field = result.fields.find((f) => f.key === "netContents");
-    expect(field?.status).toBe("match");
-  });
-});
 
 // ---------------------------------------------------------------------------
 // compareFields — bare number inference escalation
@@ -516,13 +490,12 @@ describe("compareFields — bare number inference", () => {
     expect(field?.explanation).toContain("bare number");
   });
 
-  it("escalates matching net contents bare number to warning", () => {
+  it("mismatches net contents bare number vs with unit", () => {
     const app = makeApplicationData({ netContents: "750" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
     const result = compareFields(app, label, 0);
     const field = result.fields.find((f) => f.key === "netContents");
-    expect(field?.status).toBe("warning");
-    expect(field?.explanation).toContain("bare number");
+    expect(field?.status).toBe("mismatch");
   });
 });
 

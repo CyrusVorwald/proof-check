@@ -1,5 +1,7 @@
+import { ZodError } from "zod";
 import { EXTRACTION_PROMPT } from "./prompt";
 import type { ExtractedLabel } from "./types";
+import { ExtractedLabelSchema } from "./types";
 
 export async function extractLabelData(
   imageBase64: string,
@@ -81,5 +83,13 @@ export async function extractLabelData(
     jsonText = jsonText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   }
 
-  return JSON.parse(jsonText) as ExtractedLabel;
+  try {
+    return ExtractedLabelSchema.parse(JSON.parse(jsonText));
+  } catch (err) {
+    if (err instanceof ZodError) {
+      const issues = err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      throw new Error(`Invalid extraction response: ${issues}`);
+    }
+    throw new Error("Failed to parse extraction response as JSON");
+  }
 }
