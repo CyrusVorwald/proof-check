@@ -97,11 +97,11 @@ The batch route supports uploading multiple label images at once with concurrenc
 ## Approach and Assumptions
 
 - **Two-step flow**: Extract first, then compare. This lets users verify extraction quality before submitting application data, and makes extraction independently useful.
-- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Net contents are compared as text (case-insensitive) to verify the label matches the application exactly. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
+- **Smart normalization**: Alcohol content accepts multiple formats (40% ABV, 80 Proof, "40% Alc./Vol. (80 Proof)") and cross-converts between proof and ABV. Net contents are compared as text with spacing normalization — "750ml" and "750 mL" match correctly since labels commonly compress the space between number and unit. Addresses expand abbreviations (St to Street, Ave to Avenue, etc.).
 - **Case-sensitive brand names with tolerance**: Exact match is preferred, but case-only differences (e.g., "STONE'S THROW" vs "Stone's Throw") produce a warning rather than a rejection. Labels often use stylized casing that differs from the application form.
 - **Government warning compliance**: Checked against the exact TTB standard text. ALL CAPS and bold formatting for "GOVERNMENT WARNING:" are validated when the model can detect them.
 - **Model choice**: Users can choose Haiku (faster, default) or Sonnet (more accurate). Both use prompted JSON output via the Anthropic API. Haiku defaults to meet the ~5 second response time requirement.
-- **`beverageType` collected but unused**: The form collects beverage type for future use (TTB requirements vary by type), but current comparison logic doesn't branch on it.
+- **`beverageType` compared when provided**: The form collects beverage type and it is compared against the AI-extracted type. Future versions could add type-specific validation rules (e.g., distilled spirits must display proof per 27 CFR 5.37).
 
 ## Trade-offs and Limitations
 
@@ -111,3 +111,10 @@ The batch route supports uploading multiple label images at once with concurrenc
 - **No image preprocessing**: Poor lighting, extreme angles, or glare may reduce extraction quality. The extraction reports an image quality rating and confidence score.
 - **Single-region deployment**: Runs on Cloudflare Workers (edge), but API calls to Anthropic route through their endpoints. Latency depends on the AI provider.
 - **No authentication**: Open access, suitable for a prototype. Production would require auth and audit logging.
+
+## Security Considerations
+
+- **Data residency**: Uploaded label images are sent to the Anthropic API over HTTPS for text extraction. Images are not stored server-side — they exist only in transit during the API call. Anthropic's data retention policies apply to the API request.
+- **Rate limiting**: The `/api/extract` endpoint and the verify page's extract action are rate-limited to 10 requests per minute per IP address using an in-memory sliding-window counter. This is per-isolate on Cloudflare Workers — production would use Cloudflare KV or Durable Objects for distributed state across edge locations.
+- **Security headers**: All responses include `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` headers. CSP currently allows `'unsafe-inline'` for scripts and styles due to React Router's hydration approach — production would use nonce-based CSP.
+- **Input validation**: File uploads are validated for type (JPEG, PNG, WebP only) and size (5MB max). Application form data is validated with Zod schemas. No user input is interpolated into shell commands or database queries.

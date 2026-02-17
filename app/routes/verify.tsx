@@ -20,9 +20,9 @@ import { VerificationResults } from "~/components/verification-results";
 import { checkGovernmentWarningCompliance, compareFields } from "~/lib/comparison.server";
 import type { ModelChoice } from "~/lib/extraction.server";
 import { extractLabelData } from "~/lib/extraction.server";
+import { checkRateLimit } from "~/lib/rate-limit.server";
 import type {
   ApplicationData,
-  BeverageType,
   ExtractActionResult,
   ExtractedLabel,
   VerifyActionResponse,
@@ -50,6 +50,13 @@ export async function action({ request, context }: Route.ActionArgs) {
     const intent = formData.get("intent") as string;
 
     if (intent === "extract") {
+      const { allowed, retryAfterMs } = checkRateLimit(request);
+      if (!allowed) {
+        return {
+          success: false,
+          error: `Too many requests. Please try again in ${Math.ceil((retryAfterMs ?? 60_000) / 1000)} seconds.`,
+        } satisfies VerifyActionResponse;
+      }
       return handleExtract(formData, context);
     } else if (intent === "compare") {
       return handleCompare(formData);
@@ -141,7 +148,8 @@ async function handleCompare(formData: FormData): Promise<VerifyActionResponse> 
     producerAddress: (formData.get("producerAddress") as string) || "",
     countryOfOrigin: (formData.get("countryOfOrigin") as string) || "",
     governmentWarning: (formData.get("governmentWarning") as string) || "",
-    beverageType: (formData.get("beverageType") as string as BeverageType) || "beer",
+    beverageType: ((formData.get("beverageType") as string) ||
+      "") as ApplicationData["beverageType"],
   };
 
   const result = compareFields(applicationData, extractedLabel, 0);

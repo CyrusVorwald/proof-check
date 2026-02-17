@@ -1,11 +1,23 @@
 import { checkGovernmentWarningCompliance } from "~/lib/comparison.server";
 import type { ModelChoice } from "~/lib/extraction.server";
 import { extractLabelData } from "~/lib/extraction.server";
+import { checkRateLimit } from "~/lib/rate-limit.server";
 import type { ExtractActionResult } from "~/lib/types";
 import { arrayBufferToBase64 } from "~/lib/utils";
 import type { Route } from "./+types/api.extract";
 
 export async function action({ request, context }: Route.ActionArgs) {
+  const { allowed, retryAfterMs } = checkRateLimit(request);
+  if (!allowed) {
+    return Response.json(
+      { error: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((retryAfterMs ?? 60_000) / 1000)) },
+      },
+    );
+  }
+
   const startTime = Date.now();
 
   try {

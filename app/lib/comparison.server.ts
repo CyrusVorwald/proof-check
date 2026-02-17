@@ -66,6 +66,11 @@ function normalize(str: string): string {
   return str.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export function normalizeNetContents(str: string): string {
+  // Insert space at digit→letter boundaries ("750ml" → "750 ml")
+  return normalize(str).replace(/(\d)([a-z])/g, "$1 $2");
+}
+
 function compareBrandName(expected: string, extracted: string | null): FieldResult {
   const result: FieldResult = {
     name: "Brand Name",
@@ -294,7 +299,7 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
     return result;
   }
 
-  if (normalize(expected) === normalize(extracted)) {
+  if (normalizeNetContents(expected) === normalizeNetContents(extracted)) {
     result.status = "match";
     result.explanation = "Net contents match";
   } else {

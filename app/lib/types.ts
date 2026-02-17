@@ -26,7 +26,7 @@ export interface ApplicationData {
   producerAddress: string;
   countryOfOrigin: string;
   governmentWarning: string;
-  beverageType: BeverageType;
+  beverageType: BeverageType | "";
 }
 
 export const ExtractedLabelSchema = z.object({

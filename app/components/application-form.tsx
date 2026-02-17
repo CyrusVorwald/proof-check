@@ -25,8 +25,8 @@ export function ApplicationForm({
   defaultValues,
   heading,
 }: ApplicationFormProps) {
-  const [beverageType, setBeverageType] = useState<BeverageType>(
-    defaultValues?.beverageType ?? "beer",
+  const [beverageType, setBeverageType] = useState<BeverageType | "">(
+    defaultValues?.beverageType ?? "",
   );
 
   const name = (field: string) => (namePrefix ? `${namePrefix}.${field}` : field);
@@ -60,9 +60,12 @@ export function ApplicationForm({
             Beverage Type
             <HelpTip text="Select the product category. TTB requirements vary by type." />
           </Label>
-          <Select value={beverageType} onValueChange={(v) => setBeverageType(v as BeverageType)}>
+          <Select
+            value={beverageType || undefined}
+            onValueChange={(v) => setBeverageType(v as BeverageType)}
+          >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue placeholder="Select type..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="beer">Beer</SelectItem>

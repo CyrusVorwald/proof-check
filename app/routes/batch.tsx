@@ -26,7 +26,6 @@ import type {
   BatchExtractItemResult,
   BatchItemResult,
   BatchVerifyResponse,
-  BeverageType,
   ExtractActionResult,
   ExtractedLabel,
 } from "~/lib/types";
@@ -134,8 +133,8 @@ async function handleBatchCompare(formData: FormData): Promise<BatchVerifyRespon
       producerAddress: (formData.get(`files[${fileId}].producerAddress`) as string) || "",
       countryOfOrigin: (formData.get(`files[${fileId}].countryOfOrigin`) as string) || "",
       governmentWarning: (formData.get(`files[${fileId}].governmentWarning`) as string) || "",
-      beverageType:
-        (formData.get(`files[${fileId}].beverageType`) as string as BeverageType) || "beer",
+      beverageType: ((formData.get(`files[${fileId}].beverageType`) as string) ||
+        "") as ApplicationData["beverageType"],
     };
 
     const result = compareFields(applicationData, extracted, 0);

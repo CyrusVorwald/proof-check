@@ -3,6 +3,7 @@ import {
   checkGovernmentWarningCompliance,
   compareFields,
   normalizeAddress,
+  normalizeNetContents,
   parseAlcoholContent,
 } from "./comparison.server";
 import { STANDARD_GOV_WARNING } from "./constants";
@@ -248,6 +249,70 @@ describe("compareFields — net contents", () => {
   });
 
   it("mismatches different volumes", () => {
+    const app = makeApplicationData({ netContents: "375 mL" });
+    const label = makeExtractedLabel({ netContents: "750 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("mismatch");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeNetContents — spacing normalization
+// ---------------------------------------------------------------------------
+
+describe("normalizeNetContents", () => {
+  it('inserts space in "750ml"', () => {
+    expect(normalizeNetContents("750ml")).toBe("750 ml");
+  });
+
+  it('handles mixed case "750mL"', () => {
+    expect(normalizeNetContents("750mL")).toBe("750 ml");
+  });
+
+  it('handles "1.5L"', () => {
+    expect(normalizeNetContents("1.5L")).toBe("1.5 l");
+  });
+
+  it('handles "12FL OZ"', () => {
+    expect(normalizeNetContents("12FL OZ")).toBe("12 fl oz");
+  });
+
+  it("preserves already-spaced values", () => {
+    expect(normalizeNetContents("750 mL")).toBe("750 ml");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// compareFields — net contents spacing normalization
+// ---------------------------------------------------------------------------
+
+describe("compareFields — net contents spacing normalization", () => {
+  it('matches "750ml" vs "750 mL"', () => {
+    const app = makeApplicationData({ netContents: "750ml" });
+    const label = makeExtractedLabel({ netContents: "750 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("match");
+  });
+
+  it('matches "1.5L" vs "1.5 L"', () => {
+    const app = makeApplicationData({ netContents: "1.5L" });
+    const label = makeExtractedLabel({ netContents: "1.5 L" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("match");
+  });
+
+  it('still mismatches "750" vs "750 mL"', () => {
+    const app = makeApplicationData({ netContents: "750" });
+    const label = makeExtractedLabel({ netContents: "750 mL" });
+    const result = compareFields(app, label, 0);
+    const field = result.fields.find((f) => f.key === "netContents");
+    expect(field?.status).toBe("mismatch");
+  });
+
+  it('still mismatches "375 mL" vs "750 mL"', () => {
     const app = makeApplicationData({ netContents: "375 mL" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
     const result = compareFields(app, label, 0);
