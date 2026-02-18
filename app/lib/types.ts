@@ -50,8 +50,8 @@ export const ExtractedLabelSchema = z.object({
   beverageType: BeverageTypeSchema.nullable(),
   isAlcoholLabel: coercedBoolean,
   imageQuality: z.enum(["good", "fair", "poor"]),
-  confidence: z.number(),
-  notes: z.array(z.string()),
+  confidence: z.preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number()),
+  notes: z.preprocess((v) => (typeof v === "string" ? [v] : v), z.array(z.string())),
 });
 
 export type ExtractedLabel = z.infer<typeof ExtractedLabelSchema>;

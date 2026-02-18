@@ -1,5 +1,5 @@
 const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS = 10;
+const MAX_REQUESTS = 60;
 const CLEANUP_INTERVAL_MS = 60_000; // clean stale entries every minute
 
 const ipTimestamps = new Map<string, number[]>();

@@ -16,6 +16,8 @@ interface ApplicationFormProps {
   optional?: boolean;
   namePrefix?: string;
   defaultValues?: Partial<ApplicationData>;
+  values?: Partial<ApplicationData>;
+  onChange?: (field: keyof ApplicationData, value: string) => void;
   heading?: string | false;
 }
 
@@ -23,14 +25,30 @@ export function ApplicationForm({
   optional = false,
   namePrefix,
   defaultValues,
+  values,
+  onChange,
   heading,
 }: ApplicationFormProps) {
-  const [beverageType, setBeverageType] = useState<BeverageType | "">(
+  const isControlled = values !== undefined;
+  const [localBeverageType, setLocalBeverageType] = useState<BeverageType | "">(
     defaultValues?.beverageType ?? "",
   );
 
   const name = (field: string) => (namePrefix ? `${namePrefix}.${field}` : field);
   const fieldId = (field: string) => (namePrefix ? `${namePrefix}-${field}` : field);
+
+  function inputProps(field: keyof ApplicationData) {
+    if (isControlled) {
+      return {
+        value: (values[field] as string) ?? "",
+        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+          onChange?.(field, e.target.value),
+      };
+    }
+    return { defaultValue: defaultValues?.[field] as string | undefined };
+  }
+
+  const beverageType = isControlled ? (values.beverageType ?? "") : localBeverageType;
 
   return (
     <div className="space-y-4">
@@ -51,7 +69,7 @@ export function ApplicationForm({
             name={name("brandName")}
             placeholder="e.g., Tito's Handmade"
             required={!optional}
-            defaultValue={defaultValues?.brandName}
+            {...inputProps("brandName")}
           />
         </div>
 
@@ -61,8 +79,14 @@ export function ApplicationForm({
             <HelpTip text="Select the product category. TTB requirements vary by type." />
           </Label>
           <Select
-            value={beverageType || undefined}
-            onValueChange={(v) => setBeverageType(v as BeverageType)}
+            value={isControlled ? beverageType || "" : beverageType || undefined}
+            onValueChange={(v) => {
+              if (isControlled) {
+                onChange?.("beverageType", v);
+              } else {
+                setLocalBeverageType(v as BeverageType);
+              }
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select type..." />
@@ -85,7 +109,7 @@ export function ApplicationForm({
             id={fieldId("classType")}
             name={name("classType")}
             placeholder="e.g., Vodka, Cabernet Sauvignon"
-            defaultValue={defaultValues?.classType}
+            {...inputProps("classType")}
           />
         </div>
 
@@ -99,7 +123,7 @@ export function ApplicationForm({
             name={name("alcoholContent")}
             placeholder="e.g., 40% ALC./VOL., 80 Proof, or 40"
             required={!optional}
-            defaultValue={defaultValues?.alcoholContent}
+            {...inputProps("alcoholContent")}
           />
         </div>
 
@@ -112,7 +136,7 @@ export function ApplicationForm({
             id={fieldId("netContents")}
             name={name("netContents")}
             placeholder="e.g., 750 mL, 12 FL OZ, or 750"
-            defaultValue={defaultValues?.netContents}
+            {...inputProps("netContents")}
           />
         </div>
 
@@ -125,7 +149,7 @@ export function ApplicationForm({
             id={fieldId("countryOfOrigin")}
             name={name("countryOfOrigin")}
             placeholder="e.g., United States"
-            defaultValue={defaultValues?.countryOfOrigin}
+            {...inputProps("countryOfOrigin")}
           />
         </div>
 
@@ -138,7 +162,7 @@ export function ApplicationForm({
             id={fieldId("producerName")}
             name={name("producerName")}
             placeholder="e.g., Fifth Generation Inc."
-            defaultValue={defaultValues?.producerName}
+            {...inputProps("producerName")}
           />
         </div>
 
@@ -151,7 +175,7 @@ export function ApplicationForm({
             id={fieldId("producerAddress")}
             name={name("producerAddress")}
             placeholder="e.g., Austin, Texas"
-            defaultValue={defaultValues?.producerAddress}
+            {...inputProps("producerAddress")}
           />
         </div>
       </div>
@@ -166,7 +190,7 @@ export function ApplicationForm({
           name={name("governmentWarning")}
           rows={4}
           placeholder="GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
-          defaultValue={defaultValues?.governmentWarning}
+          {...inputProps("governmentWarning")}
         />
         <p className="text-xs text-muted-foreground">
           The label is automatically checked against the standard TTB government warning text (27

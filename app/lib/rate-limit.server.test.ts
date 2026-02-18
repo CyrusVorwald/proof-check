@@ -24,14 +24,14 @@ describe("checkRateLimit", () => {
 
   it("allows requests under the limit", () => {
     const req = makeRequest("1.2.3.4");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       expect(checkRateLimit(req).allowed).toBe(true);
     }
   });
 
   it("blocks requests at the limit", () => {
     const req = makeRequest("1.2.3.4");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       checkRateLimit(req);
     }
     const result = checkRateLimit(req);
@@ -41,22 +41,22 @@ describe("checkRateLimit", () => {
 
   it("returns correct retryAfterMs", () => {
     const req = makeRequest("1.2.3.4");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       checkRateLimit(req);
-      vi.advanceTimersByTime(1000); // 1 second between each
+      vi.advanceTimersByTime(500); // 0.5 second between each
     }
-    // 10 seconds have passed, first request was at t=0, window is 60s
-    // So oldest request expires at t=60000, current time is t=10000
-    // retryAfterMs should be ~50000
+    // 30 seconds have passed, first request was at t=0, window is 60s
+    // So oldest request expires at t=60000, current time is t=30000
+    // retryAfterMs should be ~30000
     const result = checkRateLimit(req);
     expect(result.allowed).toBe(false);
     expect(result.retryAfterMs).toBeLessThanOrEqual(60_000);
-    expect(result.retryAfterMs).toBeGreaterThan(0);
+    expect(result.retryAfterMs).toBeGreaterThanOrEqual(29_000);
   });
 
   it("allows requests again after window expires", () => {
     const req = makeRequest("1.2.3.4");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       checkRateLimit(req);
     }
     expect(checkRateLimit(req).allowed).toBe(false);
@@ -71,7 +71,7 @@ describe("checkRateLimit", () => {
     const req1 = makeRequest("1.1.1.1");
     const req2 = makeRequest("2.2.2.2");
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       checkRateLimit(req1);
     }
     expect(checkRateLimit(req1).allowed).toBe(false);
@@ -92,7 +92,7 @@ describe("checkRateLimit", () => {
       headers,
     });
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 60; i++) {
       checkRateLimit(req);
     }
     expect(checkRateLimit(req).allowed).toBe(false);

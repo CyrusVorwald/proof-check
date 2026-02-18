@@ -9,7 +9,8 @@ interface BatchFileItemProps {
   id: string;
   fileName: string;
   preview: string;
-  defaultValues: Partial<ApplicationData>;
+  values: Partial<ApplicationData>;
+  onChange: (fileId: string, field: keyof ApplicationData, value: string) => void;
   onRemove: () => void;
 }
 
@@ -17,7 +18,8 @@ export function BatchFileItem({
   id,
   fileName,
   preview,
-  defaultValues,
+  values,
+  onChange,
   onRemove,
 }: BatchFileItemProps) {
   const [open, setOpen] = useState(false);
@@ -44,12 +46,12 @@ export function BatchFileItem({
             <X className="size-4" />
           </Button>
         </div>
-        <CollapsibleContent forceMount>
-          <div className={open ? "border-t px-4 py-4" : "hidden"}>
+        <CollapsibleContent>
+          <div className="border-t px-4 py-4">
             <ApplicationForm
               optional
-              namePrefix={`files[${id}]`}
-              defaultValues={defaultValues}
+              values={values}
+              onChange={(field, value) => onChange(id, field, value)}
               heading={false}
             />
           </div>

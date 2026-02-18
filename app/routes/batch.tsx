@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 import { z } from "zod";
 import { ApplicationForm } from "~/components/application-form";
@@ -119,6 +119,172 @@ async function handleBatchCompare(formData: FormData): Promise<BatchVerifyRespon
   return { success: true, intent: "compare", results };
 }
 
+const MAX_RETRIES = 3;
+
+async function fetchExtract(
+  file: File,
+  model: string,
+  onRateLimited?: (waiting: boolean) => void,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const fd = new FormData();
+    fd.set("file", file);
+    fd.set("model", model);
+
+    const response = await fetch("/api/extract", { method: "POST", body: fd });
+
+    if (response.status === 429 && attempt < MAX_RETRIES) {
+      const retryAfter = response.headers.get("Retry-After");
+      const parsed = retryAfter ? Number(retryAfter) * 1000 : NaN;
+      const waitMs = Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+      onRateLimited?.(true);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      onRateLimited?.(false);
+      continue;
+    }
+
+    return response;
+  }
+}
+
+const APPLICATION_FIELDS: (keyof ApplicationData)[] = [
+  "brandName",
+  "classType",
+  "alcoholContent",
+  "netContents",
+  "producerName",
+  "producerAddress",
+  "countryOfOrigin",
+  "governmentWarning",
+  "beverageType",
+];
+
+interface BatchState {
+  files: FileEntry[];
+  templateValues: Partial<ApplicationData>;
+  perFileDefaults: Record<string, Partial<ApplicationData>>;
+  perFileEdits: Record<string, Partial<ApplicationData>>;
+  csvWarnings: string[];
+  isExtracting: boolean;
+  rateLimitWaitCount: number;
+  extractionProgress: { completed: number; total: number } | null;
+  extractResults: BatchExtractItemResult[];
+  extractedLabels: Record<string, ExtractedLabel>;
+}
+
+type BatchAction =
+  | { type: "SET_FILES"; files: FileEntry[] }
+  | { type: "REMOVE_FILE"; fileId: string }
+  | { type: "APPLY_TEMPLATE"; values: Partial<ApplicationData> }
+  | { type: "IMPORT_CSV"; data: Record<string, Partial<ApplicationData>>; warnings: string[] }
+  | { type: "UPDATE_FILE_FIELD"; fileId: string; field: keyof ApplicationData; value: string }
+  | { type: "START_EXTRACTION"; total: number }
+  | { type: "START_RETRY"; total: number }
+  | { type: "RATE_LIMIT_WAIT" }
+  | { type: "RATE_LIMIT_RESUME" }
+  | {
+      type: "EXTRACTION_PROGRESS";
+      completed: number;
+      results: BatchExtractItemResult[];
+      labels: Record<string, ExtractedLabel>;
+    }
+  | { type: "EXTRACTION_COMPLETE" };
+
+const initialState: BatchState = {
+  files: [],
+  templateValues: {},
+  perFileDefaults: {},
+  perFileEdits: {},
+  csvWarnings: [],
+  isExtracting: false,
+  rateLimitWaitCount: 0,
+  extractionProgress: null,
+  extractResults: [],
+  extractedLabels: {},
+};
+
+function batchReducer(state: BatchState, action: BatchAction): BatchState {
+  switch (action.type) {
+    case "SET_FILES":
+      return { ...state, files: action.files };
+    case "REMOVE_FILE": {
+      const { [action.fileId]: _d, ...perFileDefaults } = state.perFileDefaults;
+      const { [action.fileId]: _e, ...perFileEdits } = state.perFileEdits;
+      const { [action.fileId]: _l, ...extractedLabels } = state.extractedLabels;
+      return {
+        ...state,
+        files: state.files.filter((f) => f.id !== action.fileId),
+        perFileDefaults,
+        perFileEdits,
+        extractedLabels,
+        extractResults: state.extractResults.filter((r) => r.fileId !== action.fileId),
+      };
+    }
+    case "APPLY_TEMPLATE":
+      return { ...state, templateValues: action.values };
+    case "IMPORT_CSV":
+      return {
+        ...state,
+        perFileDefaults: action.data,
+        csvWarnings: action.warnings,
+      };
+    case "UPDATE_FILE_FIELD":
+      return {
+        ...state,
+        perFileEdits: {
+          ...state.perFileEdits,
+          [action.fileId]: {
+            ...state.perFileEdits[action.fileId],
+            [action.field]: action.value,
+          },
+        },
+      };
+    case "START_EXTRACTION":
+      return {
+        ...state,
+        isExtracting: true,
+        rateLimitWaitCount: 0,
+        extractionProgress: { completed: 0, total: action.total },
+        extractResults: [],
+        extractedLabels: {},
+      };
+    case "START_RETRY":
+      return {
+        ...state,
+        isExtracting: true,
+        rateLimitWaitCount: 0,
+        extractionProgress: {
+          completed: state.extractResults.filter((r) => !r.error).length,
+          total: action.total,
+        },
+      };
+    case "RATE_LIMIT_WAIT":
+      return { ...state, rateLimitWaitCount: state.rateLimitWaitCount + 1 };
+    case "RATE_LIMIT_RESUME":
+      return { ...state, rateLimitWaitCount: Math.max(0, state.rateLimitWaitCount - 1) };
+    case "EXTRACTION_PROGRESS":
+      return {
+        ...state,
+        extractionProgress: {
+          completed: action.completed,
+          total: state.extractionProgress?.total ?? action.completed,
+        },
+        extractResults: action.results,
+        extractedLabels: action.labels,
+      };
+    case "EXTRACTION_COMPLETE":
+      return { ...state, isExtracting: false, rateLimitWaitCount: 0 };
+  }
+}
+
+function getEffectiveValues(fileId: string, state: BatchState): Partial<ApplicationData> {
+  return {
+    ...state.perFileDefaults[fileId],
+    ...state.templateValues,
+    ...state.perFileEdits[fileId],
+  };
+}
+
 export default function Batch() {
   const actionData = useActionData<BatchVerifyResponse>();
   const navigation = useNavigation();
@@ -126,25 +292,20 @@ export default function Batch() {
   const templateRef = useRef<HTMLDivElement>(null);
   const isSubmitting = navigation.state === "submitting";
 
-  const [files, setFiles] = useState<FileEntry[]>([]);
-  const [templateValues, setTemplateValues] = useState<Partial<ApplicationData>>({});
-  const [perFileDefaults, setPerFileDefaults] = useState<Record<string, Partial<ApplicationData>>>(
-    {},
-  );
-  const [csvWarnings, setCsvWarnings] = useState<string[]>([]);
-  const [templateVersion, setTemplateVersion] = useState(0);
+  const [state, dispatch] = useReducer(batchReducer, initialState);
+  const {
+    files,
+    csvWarnings,
+    perFileDefaults,
+    isExtracting,
+    rateLimitWaitCount,
+    extractionProgress,
+    extractResults,
+    extractedLabels,
+  } = state;
 
   // Track the last-used model for retries
   const lastModelRef = useRef("haiku");
-
-  // Extraction state (client-side progressive)
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionProgress, setExtractionProgress] = useState<{
-    completed: number;
-    total: number;
-  } | null>(null);
-  const [extractResults, setExtractResults] = useState<BatchExtractItemResult[]>([]);
-  const [extractedLabels, setExtractedLabels] = useState<Record<string, ExtractedLabel>>({});
 
   function applyTemplate() {
     if (!templateRef.current) return;
@@ -161,8 +322,7 @@ export default function Batch() {
       }
     }
 
-    setTemplateValues(values);
-    setTemplateVersion((v) => v + 1);
+    dispatch({ type: "APPLY_TEMPLATE", values });
   }
 
   function handleCSVImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -174,9 +334,7 @@ export default function Batch() {
       const text = reader.result as string;
       const rows = parseCSV(text);
       const { data, warnings } = mapCSVToApplicationData(rows, files);
-      setPerFileDefaults(data);
-      setCsvWarnings(warnings);
-      setTemplateVersion((v) => v + 1);
+      dispatch({ type: "IMPORT_CSV", data, warnings });
     };
     reader.readAsText(file);
 
@@ -192,11 +350,7 @@ export default function Batch() {
     const model = (formData.get("model") as string) || "haiku";
     lastModelRef.current = model;
 
-    // Reset state
-    setExtractResults([]);
-    setExtractedLabels({});
-    setIsExtracting(true);
-    setExtractionProgress({ completed: 0, total: files.length });
+    dispatch({ type: "START_EXTRACTION", total: files.length });
 
     const results: BatchExtractItemResult[] = new Array(files.length);
     let completed = 0;
@@ -208,14 +362,9 @@ export default function Batch() {
         const startTime = Date.now();
 
         try {
-          const fd = new FormData();
-          fd.set("file", entry.file);
-          fd.set("model", model);
-
-          const response = await fetch("/api/extract", {
-            method: "POST",
-            body: fd,
-          });
+          const response = await fetchExtract(entry.file, model, (waiting) =>
+            dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+          );
 
           if (!response.ok) {
             const errorData = (await response.json()) as { error?: string };
@@ -252,22 +401,24 @@ export default function Batch() {
 
         // Update state progressively — results appear as they arrive
         const currentResults = results.filter(Boolean);
-        setExtractResults([...currentResults]);
-        setExtractionProgress({ completed, total: files.length });
-
         const labels: Record<string, ExtractedLabel> = {};
         for (const r of currentResults) {
           if (r.extractedLabel) {
             labels[r.fileId] = r.extractedLabel;
           }
         }
-        setExtractedLabels(labels);
+        dispatch({
+          type: "EXTRACTION_PROGRESS",
+          completed,
+          results: [...currentResults],
+          labels,
+        });
 
         return results[index];
       },
     );
 
-    setIsExtracting(false);
+    dispatch({ type: "EXTRACTION_COMPLETE" });
   }
 
   async function handleRetryFailed() {
@@ -280,12 +431,12 @@ export default function Batch() {
 
     if (failedItems.length === 0) return;
 
-    setIsExtracting(true);
     const model = lastModelRef.current;
     const updatedResults = [...extractResults];
     let completed = extractResults.filter((r) => !r.error).length;
     const total = extractResults.length;
-    setExtractionProgress({ completed, total });
+
+    dispatch({ type: "START_RETRY", total });
 
     await processWithConcurrency(
       failedItems,
@@ -295,11 +446,9 @@ export default function Batch() {
         const index = updatedResults.findIndex((r) => r.fileId === failed.fileId);
 
         try {
-          const fd = new FormData();
-          fd.set("file", fileEntry.file);
-          fd.set("model", model);
-
-          const response = await fetch("/api/extract", { method: "POST", body: fd });
+          const response = await fetchExtract(fileEntry.file, model, (waiting) =>
+            dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+          );
 
           if (!response.ok) {
             const errorData = (await response.json()) as { error?: string };
@@ -327,46 +476,49 @@ export default function Batch() {
         }
 
         completed++;
-        setExtractResults([...updatedResults]);
-        setExtractionProgress({ completed, total });
-
         const labels: Record<string, ExtractedLabel> = {};
         for (const r of updatedResults) {
           if (r.extractedLabel) {
             labels[r.fileId] = r.extractedLabel;
           }
         }
-        setExtractedLabels(labels);
+        dispatch({
+          type: "EXTRACTION_PROGRESS",
+          completed,
+          results: [...updatedResults],
+          labels,
+        });
       },
     );
 
-    setIsExtracting(false);
+    dispatch({ type: "EXTRACTION_COMPLETE" });
   }
 
   function handleCompareSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const formData = new FormData(e.currentTarget);
-
-    // Strip template keys
-    for (const key of [...formData.keys()]) {
-      if (key.startsWith("__template.")) {
-        formData.delete(key);
-      }
-    }
-
+    const formData = new FormData();
     formData.set("intent", "compare");
     formData.set("extractedLabels", JSON.stringify(extractedLabels));
 
-    // Add file names for display
     for (const entry of files) {
-      if (extractedLabels[entry.id]) {
-        formData.set(`files[${entry.id}].fileName`, entry.file.name);
+      if (!extractedLabels[entry.id]) continue;
+      formData.set(`files[${entry.id}].fileName`, entry.file.name);
+      const values = getEffectiveValues(entry.id, state);
+      for (const field of APPLICATION_FIELDS) {
+        formData.set(`files[${entry.id}].${field}`, (values[field] as string) ?? "");
       }
     }
 
     submit(formData, { method: "post" });
   }
+
+  const handleFileFieldChange = useCallback(
+    (fileId: string, field: keyof ApplicationData, value: string) => {
+      dispatch({ type: "UPDATE_FILE_FIELD", fileId, field, value });
+    },
+    [],
+  );
 
   const hasExtractResults = extractResults.length > 0;
   const hasExtractedLabels = Object.keys(extractedLabels).length > 0;
@@ -394,7 +546,11 @@ export default function Batch() {
                     Upload label images and AI will read the text from them.
                   </p>
                 </div>
-                <BatchUpload files={files} onFilesChange={setFiles} sampleLabels={SAMPLE_LABELS} />
+                <BatchUpload
+                  files={files}
+                  onFilesChange={(f) => dispatch({ type: "SET_FILES", files: f })}
+                  sampleLabels={SAMPLE_LABELS}
+                />
                 <div className="space-y-1">
                   <label className="text-sm font-medium">
                     Model
@@ -417,7 +573,9 @@ export default function Batch() {
                   disabled={isExtracting || files.length === 0}
                 >
                   {isExtracting
-                    ? `Extracting ${extractionProgress?.completed ?? 0} of ${files.length} Label${files.length !== 1 ? "s" : ""}...`
+                    ? rateLimitWaitCount > 0
+                      ? "Waiting for rate limit..."
+                      : `Extracting ${extractionProgress?.completed ?? 0} of ${files.length} Label${files.length !== 1 ? "s" : ""}...`
                     : `Extract ${files.length} Label${files.length !== 1 ? "s" : ""}`}
                 </Button>
               </CardContent>
@@ -513,15 +671,13 @@ export default function Batch() {
                       .filter((entry) => extractedLabels[entry.id])
                       .map((entry) => (
                         <BatchFileItem
-                          key={`${entry.id}-${templateVersion}`}
+                          key={entry.id}
                           id={entry.id}
                           fileName={entry.file.name}
                           preview={entry.preview}
-                          defaultValues={{
-                            ...perFileDefaults[entry.id],
-                            ...templateValues,
-                          }}
-                          onRemove={() => setFiles((prev) => prev.filter((f) => f.id !== entry.id))}
+                          values={getEffectiveValues(entry.id, state)}
+                          onChange={handleFileFieldChange}
+                          onRemove={() => dispatch({ type: "REMOVE_FILE", fileId: entry.id })}
                         />
                       ))}
                   </div>
@@ -546,9 +702,14 @@ export default function Batch() {
                     Extracting {extractionProgress.completed} of {extractionProgress.total} label
                     {extractionProgress.total !== 1 ? "s" : ""}...
                   </p>
+                  {rateLimitWaitCount > 0 && (
+                    <p className="text-sm text-muted-foreground animate-pulse">
+                      Waiting for rate limit, resuming shortly...
+                    </p>
+                  )}
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      className={`h-full rounded-full transition-all duration-300 ${rateLimitWaitCount > 0 ? "bg-primary/50 animate-pulse" : "bg-primary"}`}
                       style={{
                         width: `${(extractionProgress.completed / extractionProgress.total) * 100}%`,
                       }}
