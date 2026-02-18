@@ -3,6 +3,105 @@ import { EXTRACTION_PROMPT } from "./prompt";
 import type { ExtractedLabel } from "./types";
 import { ExtractedLabelSchema } from "./types";
 
+const TOOL_NAME = "extract_label_data";
+
+const EXTRACTION_TOOL = {
+  name: TOOL_NAME,
+  description:
+    "Extract structured data from an alcohol beverage label image. Call this tool with the extracted fields.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      brandName: {
+        type: ["string", "null"] as const,
+        description: "The brand name as shown on the label, or null if not found",
+      },
+      classType: {
+        type: ["string", "null"] as const,
+        description:
+          "The class and type designation as stated on the label (e.g., 'Red Wine', 'India Pale Ale', 'Kentucky Straight Bourbon Whiskey'). Extract the full designation exactly as shown. Or null if not found",
+      },
+      alcoholContent: {
+        type: ["string", "null"] as const,
+        description:
+          "The alcohol content exactly as shown (e.g., '40% ALC./VOL.', '12.5% ABV', '80 Proof'), or null",
+      },
+      netContents: {
+        type: ["string", "null"] as const,
+        description:
+          "The net contents exactly as shown (e.g., '750 mL', '12 FL OZ', '1.75 L'), or null",
+      },
+      producerName: {
+        type: ["string", "null"] as const,
+        description: "The producer/bottler/importer name, or null",
+      },
+      producerAddress: {
+        type: ["string", "null"] as const,
+        description: "The producer/bottler/importer address, or null",
+      },
+      countryOfOrigin: {
+        type: ["string", "null"] as const,
+        description: "The country of origin (e.g., 'Product of France', 'Made in USA'), or null",
+      },
+      governmentWarning: {
+        type: ["string", "null"] as const,
+        description:
+          "The full government warning text exactly as printed on the label, or null. Include all prefixes, numbers, and special characters",
+      },
+      governmentWarningAllCaps: {
+        type: ["boolean", "null"] as const,
+        description:
+          "Whether the 'GOVERNMENT WARNING:' prefix appears in ALL CAPS, or null if no warning found",
+      },
+      governmentWarningBold: {
+        type: ["boolean", "null"] as const,
+        description:
+          "Whether the 'GOVERNMENT WARNING:' prefix appears in a bolder/heavier typeface than the rest, or null if no warning found or cannot determine",
+      },
+      beverageType: {
+        type: ["string", "null"] as const,
+        enum: ["beer", "wine", "distilled_spirits", null],
+        description: "The beverage type based on label content, or null if cannot determine",
+      },
+      isAlcoholLabel: {
+        type: "boolean" as const,
+        description: "Whether this image is actually an alcohol beverage label",
+      },
+      imageQuality: {
+        type: "string" as const,
+        enum: ["good", "fair", "poor"],
+        description: "Assessment of image readability",
+      },
+      confidence: {
+        type: "number" as const,
+        description: "0.0 to 1.0 overall confidence in the extraction accuracy",
+      },
+      notes: {
+        type: "array" as const,
+        items: { type: "string" as const },
+        description: "Any issues, observations, or uncertainties about the extraction",
+      },
+    },
+    required: [
+      "brandName",
+      "classType",
+      "alcoholContent",
+      "netContents",
+      "producerName",
+      "producerAddress",
+      "countryOfOrigin",
+      "governmentWarning",
+      "governmentWarningAllCaps",
+      "governmentWarningBold",
+      "beverageType",
+      "isAlcoholLabel",
+      "imageQuality",
+      "confidence",
+      "notes",
+    ],
+  },
+};
+
 export async function extractLabelData(
   imageBase64: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
@@ -33,6 +132,8 @@ export async function extractLabelData(
       body: JSON.stringify({
         model,
         max_tokens: 2048,
+        tools: [EXTRACTION_TOOL],
+        tool_choice: { type: "tool", name: TOOL_NAME },
         messages: [
           {
             role: "user",
@@ -80,30 +181,25 @@ export async function extractLabelData(
   }
 
   const { content } = data as { content: unknown[] };
-  const textBlock = content.find(
-    (block): block is { type: string; text: string } =>
+  const toolBlock = content.find(
+    (block): block is { type: "tool_use"; input: unknown } =>
       typeof block === "object" &&
       block !== null &&
       "type" in block &&
-      (block as { type: string }).type === "text",
+      (block as { type: string }).type === "tool_use",
   );
-  if (!textBlock || !("text" in textBlock) || typeof textBlock.text !== "string") {
-    throw new Error("No text response from Claude API");
-  }
 
-  // Strip markdown code fences if present
-  let jsonText = textBlock.text.trim();
-  if (jsonText.startsWith("```")) {
-    jsonText = jsonText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  if (!toolBlock || !("input" in toolBlock)) {
+    throw new Error("No tool_use response from Claude API");
   }
 
   try {
-    return ExtractedLabelSchema.parse(JSON.parse(jsonText));
+    return ExtractedLabelSchema.parse(toolBlock.input);
   } catch (err) {
     if (err instanceof ZodError) {
       const issues = err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
       throw new Error(`Invalid extraction response: ${issues}`);
     }
-    throw new Error("Failed to parse extraction response as JSON");
+    throw new Error("Failed to validate extraction response");
   }
 }

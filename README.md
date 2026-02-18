@@ -76,7 +76,7 @@ app/
     help.tsx          Help page with usage guide
   lib/
     extraction.server.ts    Model router (Sonnet vs Haiku)
-    anthropic.server.ts     Claude API integration (raw fetch, prompted JSON output with Zod validation)
+    anthropic.server.ts     Claude API integration (raw fetch, tool use for structured output)
     comparison.server.ts    Field comparison logic + gov warning compliance
     types.ts                Shared TypeScript types
     constants.ts            TTB standard government warning text

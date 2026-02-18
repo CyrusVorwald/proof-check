@@ -3,6 +3,12 @@ import { z } from "zod";
 const BeverageTypeSchema = z.enum(["beer", "wine", "distilled_spirits"]);
 export type BeverageType = z.infer<typeof BeverageTypeSchema>;
 
+// Tool use can return stringified booleans — coerce "true"/"false" to boolean
+const coercedBoolean = z.preprocess(
+  (v) => (v === "true" ? true : v === "false" ? false : v),
+  z.boolean(),
+);
+
 export type FieldStatus = "match" | "warning" | "mismatch" | "not_found";
 
 export interface SampleLabel {
@@ -39,10 +45,10 @@ export const ExtractedLabelSchema = z.object({
   producerAddress: z.string().nullable(),
   countryOfOrigin: z.string().nullable(),
   governmentWarning: z.string().nullable(),
-  governmentWarningAllCaps: z.boolean().nullable(),
-  governmentWarningBold: z.boolean().nullable(),
+  governmentWarningAllCaps: coercedBoolean.nullable(),
+  governmentWarningBold: coercedBoolean.nullable(),
   beverageType: BeverageTypeSchema.nullable(),
-  isAlcoholLabel: z.boolean(),
+  isAlcoholLabel: coercedBoolean,
   imageQuality: z.enum(["good", "fair", "poor"]),
   confidence: z.number(),
   notes: z.array(z.string()),
