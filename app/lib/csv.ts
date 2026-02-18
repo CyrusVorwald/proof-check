@@ -238,7 +238,6 @@ export function generateResultsCSV(results: BatchItemResult[]): string {
     ...RESULT_FIELD_KEYS.flatMap((key) => [`${key}_status`, `${key}_extracted`, `${key}_expected`]),
     "confidence",
     "imageQuality",
-    "processingTimeMs",
     "error",
   ];
 
@@ -259,7 +258,6 @@ export function generateResultsCSV(results: BatchItemResult[]): string {
 
     row.push(escapeCSV(String(item.result?.confidence ?? "")));
     row.push(escapeCSV(item.result?.imageQuality ?? ""));
-    row.push(escapeCSV(String(item.result?.processingTimeMs ?? "")));
     row.push(escapeCSV(item.error ?? ""));
 
     rows.push(row.join(","));

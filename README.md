@@ -76,7 +76,7 @@ app/
     help.tsx          Help page with usage guide
   lib/
     extraction.server.ts    Model router (Sonnet vs Haiku)
-    anthropic.server.ts     Claude API integration (raw fetch, structured output)
+    anthropic.server.ts     Claude API integration (raw fetch, prompted JSON output with Zod validation)
     comparison.server.ts    Field comparison logic + gov warning compliance
     types.ts                Shared TypeScript types
     constants.ts            TTB standard government warning text
@@ -87,7 +87,7 @@ app/
 ### Verification Flow
 
 1. **Extract** — User uploads a label image. The server sends it to Claude which returns structured JSON with all label fields (brand name, ABV, net contents, government warning, etc.)
-2. **Compare** — User optionally enters expected application data. The server runs field-by-field comparison with format normalization (ABV/Proof conversion, L/mL conversion, address abbreviation expansion).
+2. **Compare** — User optionally enters expected application data. The server runs field-by-field comparison with format normalization (ABV/Proof conversion, spacing normalization, address abbreviation expansion).
 3. **Result** — Each field gets a status (match / warning / mismatch / not_found). Overall status is approved, needs_review, or rejected. Government warning compliance is always checked against the TTB standard text (27 CFR 16.21-16.22).
 
 ### Batch Processing
@@ -114,7 +114,4 @@ The batch route supports uploading multiple label images at once with concurrenc
 
 ## Security Considerations
 
-- **Data residency**: Uploaded label images are sent to the Anthropic API over HTTPS for text extraction. Images are not stored server-side — they exist only in transit during the API call. Anthropic's data retention policies apply to the API request.
-- **Rate limiting**: The `/api/extract` endpoint and the verify page's extract action are rate-limited to 10 requests per minute per IP address using an in-memory sliding-window counter. This is per-isolate on Cloudflare Workers — production would use Cloudflare KV or Durable Objects for distributed state across edge locations.
-- **Security headers**: All responses include `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` headers. CSP currently allows `'unsafe-inline'` for scripts and styles due to React Router's hydration approach — production would use nonce-based CSP.
-- **Input validation**: File uploads are validated for type (JPEG, PNG, WebP only) and size (5MB max). Application form data is validated with Zod schemas. No user input is interpolated into shell commands or database queries.
+Images are not stored server-side — they exist only in transit during the Anthropic API call. Extraction endpoints are rate-limited (10 requests/minute/IP). All responses include standard security headers (CSP, HSTS, X-Frame-Options, etc.). File uploads are validated for type and size; form data is validated with Zod.

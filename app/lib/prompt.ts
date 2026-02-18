@@ -4,7 +4,7 @@ Return a JSON object with these exact fields:
 
 {
   "brandName": "The brand name as shown on the label, or null if not found",
-  "classType": "The class/type of beverage (e.g., 'Vodka', 'Cabernet Sauvignon', 'India Pale Ale'), or null",
+  "classType": "The class and type designation as stated on the label (e.g., 'Red Wine', 'Sparkling Wine', 'India Pale Ale', 'Coffee Liqueur', 'German-Style Lager'). This is a required TTB label element, typically printed near the brand name. Extract the full designation exactly as shown — do not substitute grape varieties or other descriptors. Or null if not found",
   "alcoholContent": "The alcohol content exactly as shown (e.g., '40% ALC./VOL.', '12.5% ABV', '80 Proof'), or null",
   "netContents": "The net contents exactly as shown (e.g., '750 mL', '12 FL OZ', '1.75 L'), or null",
   "producerName": "The producer/bottler/importer name, or null",

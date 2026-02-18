@@ -4,7 +4,6 @@ import type {
   ExtractedLabel,
   FieldResult,
   GovernmentWarningCheck,
-  NormalizationNote,
   ParsedAlcoholContent,
   VerificationResult,
 } from "./types";
@@ -109,62 +108,38 @@ function compareBrandName(expected: string, extracted: string | null): FieldResu
   return result;
 }
 
-function compareBeverageType(expected: string, extracted: string | null): FieldResult {
-  const result: FieldResult = {
-    name: "Beverage Type",
-    key: "beverageType",
-    extracted,
-    expected,
-    status: "match",
-    explanation: "",
-  };
-
+function compareSimpleField(
+  name: string,
+  key: string,
+  expected: string,
+  extracted: string | null,
+): FieldResult {
   if (!extracted) {
-    result.status = "not_found";
-    result.explanation = "Beverage type could not be determined from label";
-    return result;
+    return {
+      name,
+      key,
+      extracted,
+      expected,
+      status: "not_found",
+      explanation: `${name} not found on label`,
+    };
   }
 
   if (normalize(expected) === normalize(extracted)) {
-    result.status = "match";
-    result.explanation = "Beverage type matches";
-  } else {
-    result.status = "mismatch";
-    result.explanation = `Expected "${expected}", found "${extracted}"`;
+    return { name, key, extracted, expected, status: "match", explanation: `${name} matches` };
   }
 
-  return result;
-}
-
-function compareClassType(expected: string, extracted: string | null): FieldResult {
-  const result: FieldResult = {
-    name: "Class/Type",
-    key: "classType",
+  return {
+    name,
+    key,
     extracted,
     expected,
-    status: "match",
-    explanation: "",
+    status: "mismatch",
+    explanation: `Expected "${expected}", found "${extracted}"`,
   };
-
-  if (!extracted) {
-    result.status = "not_found";
-    result.explanation = "Class/type not found on label";
-    return result;
-  }
-
-  if (normalize(expected) === normalize(extracted)) {
-    result.status = "match";
-    result.explanation = "Class/type matches";
-  } else {
-    result.status = "mismatch";
-    result.explanation = `Expected "${expected}", found "${extracted}"`;
-  }
-
-  return result;
 }
 
 export function parseAlcoholContent(value: string): ParsedAlcoholContent {
-  const notes: NormalizationNote[] = [];
   let abv: number | null = null;
   let proof: number | null = null;
   let inferredFromBareNumber = false;
@@ -178,14 +153,7 @@ export function parseAlcoholContent(value: string): ParsedAlcoholContent {
   if (combinedMatch) {
     abv = parseFloat(combinedMatch[1]);
     proof = parseFloat(combinedMatch[2]);
-    const expectedProof = abv * 2;
-    if (Math.abs(proof - expectedProof) > 0.1) {
-      notes.push({
-        text: `Proof (${proof}) doesn't match expected 2×ABV (${expectedProof})`,
-        level: "caution",
-      });
-    }
-    return { rawText: trimmed, abv, proof, inferredFromBareNumber, notes };
+    return { rawText: trimmed, abv, proof, inferredFromBareNumber };
   }
 
   // 2. Proof only: "80 Proof"
@@ -193,11 +161,7 @@ export function parseAlcoholContent(value: string): ParsedAlcoholContent {
   if (proofMatch) {
     proof = parseFloat(proofMatch[1]);
     abv = proof / 2;
-    notes.push({
-      text: `Converted ${proof} Proof to ${abv}% ABV (US standard: proof = 2 × ABV)`,
-      level: "info",
-    });
-    return { rawText: trimmed, abv, proof, inferredFromBareNumber, notes };
+    return { rawText: trimmed, abv, proof, inferredFromBareNumber };
   }
 
   // 3. Percent with qualifier: "40%", "40% ABV", "40% alc. by vol.", "40 percent alcohol by volume"
@@ -206,7 +170,7 @@ export function parseAlcoholContent(value: string): ParsedAlcoholContent {
   );
   if (percentMatch) {
     abv = parseFloat(percentMatch[1]);
-    return { rawText: trimmed, abv, proof, inferredFromBareNumber, notes };
+    return { rawText: trimmed, abv, proof, inferredFromBareNumber };
   }
 
   // 4. Bare number: "40"
@@ -214,14 +178,10 @@ export function parseAlcoholContent(value: string): ParsedAlcoholContent {
   if (bareMatch) {
     abv = parseFloat(bareMatch[1]);
     inferredFromBareNumber = true;
-    notes.push({
-      text: `Interpreted '${trimmed}' as ${abv}% ABV (no unit specified)`,
-      level: "caution",
-    });
-    return { rawText: trimmed, abv, proof, inferredFromBareNumber, notes };
+    return { rawText: trimmed, abv, proof, inferredFromBareNumber };
   }
 
-  return { rawText: trimmed, abv, proof, inferredFromBareNumber, notes };
+  return { rawText: trimmed, abv, proof, inferredFromBareNumber };
 }
 
 function compareAlcoholContent(expected: string, extracted: string | null): FieldResult {
@@ -264,13 +224,6 @@ function compareAlcoholContent(expected: string, extracted: string | null): Fiel
     result.explanation = `Expected ${expectedParsed.abv}% ABV, found ${extractedParsed.abv}% ABV`;
   }
 
-  result.normalization = {
-    expectedParsed,
-    extractedParsed,
-    numericDiff: diff,
-    diffUnit: "%",
-  };
-
   // Bare number inference → minimum status is warning
   if (
     (expectedParsed.inferredFromBareNumber || extractedParsed.inferredFromBareNumber) &&
@@ -302,33 +255,6 @@ function compareNetContents(expected: string, extracted: string | null): FieldRe
   if (normalizeNetContents(expected) === normalizeNetContents(extracted)) {
     result.status = "match";
     result.explanation = "Net contents match";
-  } else {
-    result.status = "mismatch";
-    result.explanation = `Expected "${expected}", found "${extracted}"`;
-  }
-
-  return result;
-}
-
-function compareProducerName(expected: string, extracted: string | null): FieldResult {
-  const result: FieldResult = {
-    name: "Producer Name",
-    key: "producerName",
-    extracted,
-    expected,
-    status: "match",
-    explanation: "",
-  };
-
-  if (!extracted) {
-    result.status = "not_found";
-    result.explanation = "Producer name not found on label";
-    return result;
-  }
-
-  if (normalize(expected) === normalize(extracted)) {
-    result.status = "match";
-    result.explanation = "Producer name matches";
   } else {
     result.status = "mismatch";
     result.explanation = `Expected "${expected}", found "${extracted}"`;
@@ -439,7 +365,7 @@ function compareCountryOfOrigin(expected: string, extracted: string | null): Fie
   // Extract just the country name from phrases like "Product of France"
   const extractCountry = (s: string) =>
     normalize(s)
-      .replace(/^(product of|made in|produced in|imported from)\s+/i, "")
+      .replace(/^(product of|made in|produced in|imported from)\s+/, "")
       .trim();
 
   if (extractCountry(expected) === extractCountry(extracted)) {
@@ -515,12 +441,18 @@ function compareGovernmentWarning(
 export function compareFields(
   expected: ApplicationData,
   extracted: ExtractedLabel,
-  processingTimeMs: number,
 ): VerificationResult {
   const fields: FieldResult[] = [];
 
   if (expected.beverageType) {
-    fields.push(compareBeverageType(expected.beverageType, extracted.beverageType));
+    fields.push(
+      compareSimpleField(
+        "Beverage Type",
+        "beverageType",
+        expected.beverageType,
+        extracted.beverageType,
+      ),
+    );
   }
 
   if (expected.brandName) {
@@ -528,7 +460,9 @@ export function compareFields(
   }
 
   if (expected.classType) {
-    fields.push(compareClassType(expected.classType, extracted.classType));
+    fields.push(
+      compareSimpleField("Class/Type", "classType", expected.classType, extracted.classType),
+    );
   }
 
   if (expected.alcoholContent) {
@@ -540,7 +474,14 @@ export function compareFields(
   }
 
   if (expected.producerName) {
-    fields.push(compareProducerName(expected.producerName, extracted.producerName));
+    fields.push(
+      compareSimpleField(
+        "Producer Name",
+        "producerName",
+        expected.producerName,
+        extracted.producerName,
+      ),
+    );
   }
 
   if (expected.producerAddress) {
@@ -594,6 +535,5 @@ export function compareFields(
     imageQuality: extracted.imageQuality,
     confidence: extracted.confidence,
     notes: extracted.notes,
-    processingTimeMs,
   };
 }

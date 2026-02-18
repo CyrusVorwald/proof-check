@@ -1,12 +1,10 @@
 import { Loader2, Upload, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import type { SampleLabel } from "~/components/label-upload";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
+import type { SampleLabel } from "~/lib/types";
+import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "~/lib/utils";
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_MB = 5;
-const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 const MAX_FILES = 300;
 
 export interface FileEntry {
@@ -14,8 +12,6 @@ export interface FileEntry {
   file: File;
   preview: string;
 }
-
-let nextId = 0;
 
 export function BatchUpload({
   files,
@@ -38,16 +34,16 @@ export function BatchUpload({
       const errors: string[] = [];
 
       for (const file of Array.from(fileList)) {
-        if (!ACCEPTED_TYPES.includes(file.type)) {
+        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
           errors.push(`${file.name}: invalid file type`);
           continue;
         }
-        if (file.size > MAX_SIZE_BYTES) {
-          errors.push(`${file.name}: exceeds ${MAX_SIZE_MB}MB limit`);
+        if (file.size > MAX_FILE_SIZE) {
+          errors.push(`${file.name}: exceeds ${MAX_FILE_SIZE_MB}MB limit`);
           continue;
         }
         newEntries.push({
-          id: String(nextId++),
+          id: crypto.randomUUID(),
           file,
           preview: URL.createObjectURL(file),
         });
@@ -111,7 +107,7 @@ export function BatchUpload({
             const blob = await response.blob();
             const file = new File([blob], sample.fileName, { type: blob.type });
             return {
-              id: String(nextId++),
+              id: crypto.randomUUID(),
               file,
               preview: URL.createObjectURL(blob),
             };
@@ -179,7 +175,7 @@ export function BatchUpload({
           <div>
             <p className="text-sm font-medium">Click to upload or drag and drop multiple files</p>
             <p className="text-xs text-muted-foreground">
-              JPG, PNG, or WebP (max {MAX_SIZE_MB}MB each, up to {MAX_FILES} files)
+              JPG, PNG, or WebP (max {MAX_FILE_SIZE_MB}MB each, up to {MAX_FILES} files)
             </p>
           </div>
           {files.length === 0 && sampleLabels && sampleLabels.length > 0 && (

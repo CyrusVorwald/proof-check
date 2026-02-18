@@ -106,7 +106,7 @@ export function ApplicationForm({
         <div className="space-y-2">
           <Label htmlFor={fieldId("netContents")}>
             Net Contents
-            <HelpTip text="Accepts various formats: 750 mL, 12 FL OZ, 1L. Units are normalized for comparison." />
+            <HelpTip text="Enter the value as shown on the label. Spacing is normalized (e.g., '750ml' matches '750 mL')." />
           </Label>
           <Input
             id={fieldId("netContents")}

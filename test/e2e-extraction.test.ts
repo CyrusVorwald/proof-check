@@ -136,7 +136,7 @@ function reportResults(results: ExtractionEntry[]) {
       continue;
     }
 
-    const verification = compareFields(entry.applicationData, entry.extracted, entry.timeMs);
+    const verification = compareFields(entry.applicationData, entry.extracted);
 
     const tableRow: Record<string, string> = { image: entry.fileName };
     for (const key of FIELD_KEYS) {
@@ -177,7 +177,7 @@ function fieldAccuracy(
   let total = 0;
   for (const entry of results) {
     if (!entry.extracted) continue;
-    const verification = compareFields(entry.applicationData, entry.extracted, entry.timeMs);
+    const verification = compareFields(entry.applicationData, entry.extracted);
     const field = verification.fields.find((f) => f.key === key);
     if (field) {
       total++;
@@ -243,7 +243,7 @@ function modelSuite(model: ModelChoice, apiKeyPresent: boolean) {
     }, 360_000);
 
     it("extraction succeeds for every fixture image", () => {
-      expect(results.length).toBe(12);
+      expect(results.length).toBe(imageData.length);
       const failed = results.filter((e) => e.extracted === null);
       if (failed.length > 0) {
         console.log(`  ${failed.length} extraction(s) failed:`);

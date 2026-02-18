@@ -7,7 +7,6 @@ import { BatchFileItem } from "~/components/batch-file-item";
 import { BatchResults } from "~/components/batch-results";
 import { BatchUpload, type FileEntry } from "~/components/batch-upload";
 import { HelpTip } from "~/components/help-tip";
-import type { SampleLabel } from "~/components/label-upload";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -20,6 +19,7 @@ import {
 } from "~/components/ui/select";
 import { Separator } from "~/components/ui/separator";
 import { compareFields } from "~/lib/comparison.server";
+import { SAMPLE_LABELS } from "~/lib/constants";
 import { mapCSVToApplicationData, parseCSV } from "~/lib/csv";
 import type {
   ApplicationData,
@@ -30,13 +30,8 @@ import type {
   ExtractedLabel,
 } from "~/lib/types";
 import { ExtractedLabelSchema } from "~/lib/types";
+import { processWithConcurrency } from "~/lib/utils";
 import type { Route } from "./+types/batch";
-
-const SAMPLE_LABELS: SampleLabel[] = [
-  { label: "Beer", url: "/samples/beer.jpg", fileName: "beer.jpg" },
-  { label: "Bourbon", url: "/samples/bourbon.jpg", fileName: "bourbon.jpg" },
-  { label: "Wine", url: "/samples/wine.jpg", fileName: "wine.jpg" },
-];
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -49,26 +44,6 @@ export function meta({}: Route.MetaArgs) {
 }
 
 const CONCURRENCY_LIMIT = 5;
-
-async function processWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let index = 0;
-
-  async function worker() {
-    while (index < items.length) {
-      const currentIndex = index++;
-      results[currentIndex] = await fn(items[currentIndex]);
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
 
 // Server action — only handles compare (extraction is client-side progressive)
 export async function action({ request }: Route.ActionArgs) {
@@ -137,7 +112,7 @@ async function handleBatchCompare(formData: FormData): Promise<BatchVerifyRespon
         "") as ApplicationData["beverageType"],
     };
 
-    const result = compareFields(applicationData, extracted, 0);
+    const result = compareFields(applicationData, extracted);
     return { fileName, result };
   });
 

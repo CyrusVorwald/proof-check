@@ -3,7 +3,6 @@ import { Form, useActionData, useNavigation } from "react-router";
 import { ApplicationForm } from "~/components/application-form";
 import { ExtractionSummary } from "~/components/extraction-summary";
 import { HelpTip } from "~/components/help-tip";
-import type { SampleLabel } from "~/components/label-upload";
 import { LabelUpload } from "~/components/label-upload";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -18,6 +17,7 @@ import {
 import { Separator } from "~/components/ui/separator";
 import { VerificationResults } from "~/components/verification-results";
 import { checkGovernmentWarningCompliance, compareFields } from "~/lib/comparison.server";
+import { SAMPLE_LABELS } from "~/lib/constants";
 import type { ModelChoice } from "~/lib/extraction.server";
 import { extractLabelData } from "~/lib/extraction.server";
 import { checkRateLimit } from "~/lib/rate-limit.server";
@@ -28,14 +28,8 @@ import type {
   VerifyActionResponse,
 } from "~/lib/types";
 import { ExtractedLabelSchema } from "~/lib/types";
-import { arrayBufferToBase64 } from "~/lib/utils";
+import { arrayBufferToBase64, validateUploadedFile } from "~/lib/utils";
 import type { Route } from "./+types/verify";
-
-const SAMPLE_LABELS: SampleLabel[] = [
-  { label: "Beer", url: "/samples/beer.jpg", fileName: "beer.jpg" },
-  { label: "Bourbon", url: "/samples/bourbon.jpg", fileName: "bourbon.jpg" },
-  { label: "Wine", url: "/samples/wine.jpg", fileName: "wine.jpg" },
-];
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -83,20 +77,9 @@ async function handleExtract(
   const startTime = Date.now();
   const file = formData.get("labelImage") as File | null;
 
-  if (!file || file.size === 0) {
-    return { success: false, error: "Please upload a label image." };
-  }
-
-  const validTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!validTypes.includes(file.type)) {
-    return {
-      success: false,
-      error: "Invalid file type. Please upload a JPG, PNG, or WebP image.",
-    };
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    return { success: false, error: "File too large. Maximum size is 5MB." };
+  const validationError = validateUploadedFile(file);
+  if (validationError || !file) {
+    return { success: false, error: validationError ?? "Please upload a label image." };
   }
 
   const arrayBuffer = await file.arrayBuffer();
@@ -152,7 +135,7 @@ async function handleCompare(formData: FormData): Promise<VerifyActionResponse> 
       "") as ApplicationData["beverageType"],
   };
 
-  const result = compareFields(applicationData, extractedLabel, 0);
+  const result = compareFields(applicationData, extractedLabel);
 
   return { success: true, intent: "compare", result };
 }

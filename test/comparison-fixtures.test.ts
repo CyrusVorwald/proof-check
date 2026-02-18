@@ -97,7 +97,7 @@ describe("comparison with fixture data", () => {
       for (let i = 1; i < validRows.length; i++) {
         const expected = makeApplicationData(validRows[i]);
         const extracted = extractedFromRow(validRows[i]);
-        const result = compareFields(expected, extracted, 100);
+        const result = compareFields(expected, extracted);
 
         for (const field of result.fields) {
           expect(
@@ -119,7 +119,7 @@ describe("comparison with fixture data", () => {
     it("row 1 (Aloria): ABV 14.2% vs 12.2% → alcoholContent mismatch, rejected", () => {
       const expected = makeApplicationData(errorRows[1]);
       const extracted = extractedFromRow(validRows[1]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "alcoholContent")).toBe("mismatch");
       expect(result.overallStatus).toBe("rejected");
@@ -128,7 +128,7 @@ describe("comparison with fixture data", () => {
     it("row 2 (Les Champs Libres): brand case diff → warning, needs_review", () => {
       const expected = makeApplicationData(errorRows[2]);
       const extracted = extractedFromRow(validRows[2]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "brandName")).toBe("warning");
       expect(result.overallStatus).toBe("needs_review");
@@ -137,7 +137,7 @@ describe("comparison with fixture data", () => {
     it("row 3 (Cantina Canaio): classType mismatch → rejected", () => {
       const expected = makeApplicationData(errorRows[3]);
       const extracted = extractedFromRow(validRows[3]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "classType")).toBe("mismatch");
       expect(result.overallStatus).toBe("rejected");
@@ -154,7 +154,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[2], {
         netContents: "1500 mL",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "netContents")).toBe("mismatch");
     });
@@ -168,7 +168,7 @@ describe("comparison with fixture data", () => {
       // Chattabrewchee: "12 FL. OZ."
       const expected = makeApplicationData(validRows[4]);
       const extracted = extractedFromRow(validRows[4]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "netContents")).toBe("match");
     });
@@ -179,7 +179,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[9], {
         netContents: "20 U.S. Gallons",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "netContents")).toBe("mismatch");
     });
@@ -195,7 +195,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[11], {
         countryOfOrigin: "Product of France",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "countryOfOrigin")).toBe("match");
     });
@@ -205,7 +205,7 @@ describe("comparison with fixture data", () => {
         countryOfOrigin: "Product of France",
       });
       const extracted = extractedFromRow(validRows[2]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "countryOfOrigin")).toBe("match");
     });
@@ -221,7 +221,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[4], {
         producerAddress: "1301 6th Avenue Suite C Columbus GA",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "producerAddress")).toBe("match");
     });
@@ -232,7 +232,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[11], {
         producerAddress: "7307 Edgewater Drive Suite J, Oakland, CA 94621",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "producerAddress")).toBe("match");
     });
@@ -245,7 +245,7 @@ describe("comparison with fixture data", () => {
     it("null extracted brandName → not_found, overall needs_review", () => {
       const expected = makeApplicationData(validRows[1]);
       const extracted = extractedFromRow(validRows[1], { brandName: null });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "brandName")).toBe("not_found");
       expect(result.overallStatus).toBe("needs_review");
@@ -256,7 +256,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[5], {
         alcoholContent: null,
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       expect(fieldStatus(result, "alcoholContent")).toBe("not_found");
       expect(result.overallStatus).toBe("needs_review");
@@ -273,7 +273,7 @@ describe("comparison with fixture data", () => {
       expect(expected.countryOfOrigin).toBe("");
 
       const extracted = extractedFromRow(validRows[1]);
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       const countryField = result.fields.find((f) => f.key === "countryOfOrigin");
       expect(countryField).toBeUndefined();
@@ -285,7 +285,7 @@ describe("comparison with fixture data", () => {
       const extracted = extractedFromRow(validRows[1], {
         countryOfOrigin: "United States",
       });
-      const result = compareFields(expected, extracted, 100);
+      const result = compareFields(expected, extracted);
 
       const countryField = result.fields.find((f) => f.key === "countryOfOrigin");
       expect(countryField).toBeUndefined();

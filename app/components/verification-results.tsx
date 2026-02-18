@@ -69,7 +69,6 @@ export function VerificationResults({ result }: { result: VerificationResult }) 
 
       {/* Processing info */}
       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <span>Processed in {(result.processingTimeMs / 1000).toFixed(1)}s</span>
         <span>
           Confidence: {Math.round(result.confidence * 100)}%
           <HelpTip text="How confident the AI model is in its extraction. Higher is better." />

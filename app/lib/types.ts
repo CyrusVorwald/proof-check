@@ -1,12 +1,14 @@
 import { z } from "zod";
 
-export type BeverageType = "beer" | "wine" | "distilled_spirits";
+const BeverageTypeSchema = z.enum(["beer", "wine", "distilled_spirits"]);
+export type BeverageType = z.infer<typeof BeverageTypeSchema>;
 
 export type FieldStatus = "match" | "warning" | "mismatch" | "not_found";
 
-export interface NormalizationNote {
-  text: string;
-  level: "info" | "caution";
+export interface SampleLabel {
+  label: string;
+  url: string;
+  fileName: string;
 }
 
 export interface ParsedAlcoholContent {
@@ -14,7 +16,6 @@ export interface ParsedAlcoholContent {
   abv: number | null;
   proof: number | null;
   inferredFromBareNumber: boolean;
-  notes: NormalizationNote[];
 }
 
 export interface ApplicationData {
@@ -40,7 +41,7 @@ export const ExtractedLabelSchema = z.object({
   governmentWarning: z.string().nullable(),
   governmentWarningAllCaps: z.boolean().nullable(),
   governmentWarningBold: z.boolean().nullable(),
-  beverageType: z.enum(["beer", "wine", "distilled_spirits"]).nullable(),
+  beverageType: BeverageTypeSchema.nullable(),
   isAlcoholLabel: z.boolean(),
   imageQuality: z.enum(["good", "fair", "poor"]),
   confidence: z.number(),
@@ -56,12 +57,6 @@ export interface FieldResult {
   expected: string;
   status: FieldStatus;
   explanation: string;
-  normalization?: {
-    expectedParsed?: ParsedAlcoholContent;
-    extractedParsed?: ParsedAlcoholContent;
-    numericDiff?: number;
-    diffUnit?: string;
-  };
 }
 
 export interface GovernmentWarningCheck {
@@ -80,7 +75,6 @@ export interface VerificationResult {
   imageQuality: "good" | "fair" | "poor";
   confidence: number;
   notes: string[];
-  processingTimeMs: number;
 }
 
 export interface ExtractActionResult {
@@ -110,6 +104,5 @@ export interface BatchExtractItemResult {
 }
 
 export type BatchVerifyResponse =
-  | { success: true; intent: "extract"; results: BatchExtractItemResult[] }
   | { success: true; intent: "compare"; results: BatchItemResult[] }
   | { success: false; error: string };

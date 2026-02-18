@@ -3,7 +3,7 @@ import type { ModelChoice } from "~/lib/extraction.server";
 import { extractLabelData } from "~/lib/extraction.server";
 import { checkRateLimit } from "~/lib/rate-limit.server";
 import type { ExtractActionResult } from "~/lib/types";
-import { arrayBufferToBase64 } from "~/lib/utils";
+import { arrayBufferToBase64, validateUploadedFile } from "~/lib/utils";
 import type { Route } from "./+types/api.extract";
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -25,22 +25,12 @@ export async function action({ request, context }: Route.ActionArgs) {
     const file = formData.get("file") as File | null;
     const model = (formData.get("model") as ModelChoice) || "haiku";
 
-    if (!file || file.size === 0) {
-      return Response.json({ error: "Please upload a label image." }, { status: 400 });
-    }
-
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
+    const validationError = validateUploadedFile(file);
+    if (validationError || !file) {
       return Response.json(
-        {
-          error: "Invalid file type. Please upload a JPG, PNG, or WebP image.",
-        },
+        { error: validationError ?? "Please upload a label image." },
         { status: 400 },
       );
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      return Response.json({ error: "File too large. Maximum size is 5MB." }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();

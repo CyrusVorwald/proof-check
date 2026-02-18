@@ -68,12 +68,26 @@ export async function extractLabelData(
     throw new Error(`Anthropic API error (${response.status}): ${errorBody}`);
   }
 
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text?: string }>;
-  };
+  const data: unknown = await response.json();
 
-  const textBlock = data.content.find((block) => block.type === "text");
-  if (!textBlock?.text) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("content" in data) ||
+    !Array.isArray((data as { content: unknown }).content)
+  ) {
+    throw new Error("Unexpected Anthropic API response: missing or invalid 'content' array");
+  }
+
+  const { content } = data as { content: unknown[] };
+  const textBlock = content.find(
+    (block): block is { type: string; text: string } =>
+      typeof block === "object" &&
+      block !== null &&
+      "type" in block &&
+      (block as { type: string }).type === "text",
+  );
+  if (!textBlock || !("text" in textBlock) || typeof textBlock.text !== "string") {
     throw new Error("No text response from Claude API");
   }
 

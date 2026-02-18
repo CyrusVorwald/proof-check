@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Separator } from "~/components/ui/separator";
+import type { Route } from "./+types/help";
 
-export function meta() {
+export function meta({}: Route.MetaArgs) {
   return [
     { title: "Help - ProofCheck" },
     {
@@ -285,8 +286,8 @@ export default function Help() {
                     <strong>Alcohol content:</strong> 40% ABV, 80 Proof, 40% Alc./Vol., or just "40"
                   </li>
                   <li>
-                    <strong>Net contents:</strong> Compared as text (case-insensitive). Enter the
-                    value exactly as it appears on the label.
+                    <strong>Net contents:</strong> Compared as text with spacing normalization
+                    (e.g., "750ml" matches "750 mL")
                   </li>
                   <li>
                     <strong>Addresses:</strong> Abbreviations like St, Ave, Blvd are expanded for

@@ -3,16 +3,10 @@ import type { ExtractedLabel } from "./types";
 
 export type ModelChoice = "sonnet" | "haiku";
 
-interface Env {
-  ANTHROPIC_API_KEY: string;
-  AI_GATEWAY_URL?: string;
-  AI_GATEWAY_TOKEN?: string;
-}
-
 export async function extractLabelData(
   imageBase64: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
-  env: Env,
+  env: Pick<Env, "ANTHROPIC_API_KEY" | "AI_GATEWAY_URL" | "AI_GATEWAY_TOKEN">,
   model: ModelChoice = "haiku",
 ): Promise<ExtractedLabel> {
   const gatewayUrl = env.AI_GATEWAY_URL;

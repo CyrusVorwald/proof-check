@@ -65,8 +65,6 @@ describe("parseAlcoholContent", () => {
     const result = parseAlcoholContent("80 Proof");
     expect(result.abv).toBe(40);
     expect(result.proof).toBe(80);
-    expect(result.notes.length).toBeGreaterThan(0);
-    expect(result.notes[0].level).toBe("info");
   });
 
   it("parses percent ABV format", () => {
@@ -79,7 +77,6 @@ describe("parseAlcoholContent", () => {
     const result = parseAlcoholContent("40");
     expect(result.abv).toBe(40);
     expect(result.inferredFromBareNumber).toBe(true);
-    expect(result.notes[0].level).toBe("caution");
   });
 
   it("returns null ABV for unparseable text", () => {
@@ -92,13 +89,8 @@ describe("parseAlcoholContent", () => {
     const result = parseAlcoholContent("40% Alc./Vol. (90 Proof)");
     expect(result.abv).toBe(40);
     expect(result.proof).toBe(90);
-    expect(result.notes.some((n) => n.level === "caution")).toBe(true);
   });
 });
-
-// ---------------------------------------------------------------------------
-// (parseNetContents removed — net contents uses text comparison only)
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // normalizeAddress
@@ -173,7 +165,7 @@ describe("compareFields — brand name", () => {
   it("matches exact brand name", () => {
     const app = makeApplicationData({ brandName: "OLD TOM DISTILLERY" });
     const label = makeExtractedLabel({ brandName: "OLD TOM DISTILLERY" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "brandName");
     expect(field?.status).toBe("match");
   });
@@ -181,7 +173,7 @@ describe("compareFields — brand name", () => {
   it("warns on case difference", () => {
     const app = makeApplicationData({ brandName: "Stone's Throw" });
     const label = makeExtractedLabel({ brandName: "STONE'S THROW" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "brandName");
     expect(field?.status).toBe("warning");
   });
@@ -189,7 +181,7 @@ describe("compareFields — brand name", () => {
   it("warns on partial match", () => {
     const app = makeApplicationData({ brandName: "Old Tom" });
     const label = makeExtractedLabel({ brandName: "Old Tom Distillery" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "brandName");
     expect(field?.status).toBe("warning");
   });
@@ -197,7 +189,7 @@ describe("compareFields — brand name", () => {
   it("mismatches completely different names", () => {
     const app = makeApplicationData({ brandName: "Sunrise Wines" });
     const label = makeExtractedLabel({ brandName: "Moonlight Spirits" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "brandName");
     expect(field?.status).toBe("mismatch");
   });
@@ -213,7 +205,7 @@ describe("compareFields — alcohol content", () => {
     const label = makeExtractedLabel({
       alcoholContent: "40% Alc./Vol. (80 Proof)",
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "alcoholContent");
     expect(field?.status).toBe("match");
   });
@@ -221,7 +213,7 @@ describe("compareFields — alcohol content", () => {
   it("mismatches different ABV values", () => {
     const app = makeApplicationData({ alcoholContent: "5% ABV" });
     const label = makeExtractedLabel({ alcoholContent: "12% ABV" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "alcoholContent");
     expect(field?.status).toBe("mismatch");
   });
@@ -235,7 +227,7 @@ describe("compareFields — net contents", () => {
   it("matches identical net contents", () => {
     const app = makeApplicationData({ netContents: "750 mL" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("match");
   });
@@ -243,7 +235,7 @@ describe("compareFields — net contents", () => {
   it("matches case-insensitively", () => {
     const app = makeApplicationData({ netContents: "12 FL OZ" });
     const label = makeExtractedLabel({ netContents: "12 fl oz" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("match");
   });
@@ -251,7 +243,7 @@ describe("compareFields — net contents", () => {
   it("mismatches different volumes", () => {
     const app = makeApplicationData({ netContents: "375 mL" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("mismatch");
   });
@@ -291,7 +283,7 @@ describe("compareFields — net contents spacing normalization", () => {
   it('matches "750ml" vs "750 mL"', () => {
     const app = makeApplicationData({ netContents: "750ml" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("match");
   });
@@ -299,7 +291,7 @@ describe("compareFields — net contents spacing normalization", () => {
   it('matches "1.5L" vs "1.5 L"', () => {
     const app = makeApplicationData({ netContents: "1.5L" });
     const label = makeExtractedLabel({ netContents: "1.5 L" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("match");
   });
@@ -307,7 +299,7 @@ describe("compareFields — net contents spacing normalization", () => {
   it('still mismatches "750" vs "750 mL"', () => {
     const app = makeApplicationData({ netContents: "750" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("mismatch");
   });
@@ -315,7 +307,7 @@ describe("compareFields — net contents spacing normalization", () => {
   it('still mismatches "375 mL" vs "750 mL"', () => {
     const app = makeApplicationData({ netContents: "375 mL" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("mismatch");
   });
@@ -331,7 +323,7 @@ describe("compareFields — country of origin", () => {
     const label = makeExtractedLabel({
       countryOfOrigin: "Product of France",
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "countryOfOrigin");
     expect(field?.status).toBe("match");
   });
@@ -339,7 +331,7 @@ describe("compareFields — country of origin", () => {
   it("mismatches different countries", () => {
     const app = makeApplicationData({ countryOfOrigin: "USA" });
     const label = makeExtractedLabel({ countryOfOrigin: "Scotland" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "countryOfOrigin");
     expect(field?.status).toBe("mismatch");
   });
@@ -359,7 +351,7 @@ describe("compareFields — government warning", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: true,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "governmentWarning");
     expect(field?.status).toBe("match");
   });
@@ -373,7 +365,7 @@ describe("compareFields — government warning", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: false,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "governmentWarning");
     expect(field?.status).toBe("warning");
   });
@@ -387,7 +379,7 @@ describe("compareFields — government warning", () => {
       governmentWarningAllCaps: null,
       governmentWarningBold: null,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "governmentWarning");
     expect(field?.status).toBe("mismatch");
   });
@@ -410,7 +402,7 @@ describe("compareFields — overall status", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: true,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     expect(result.overallStatus).toBe("approved");
   });
 
@@ -426,7 +418,7 @@ describe("compareFields — overall status", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: true,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     expect(result.overallStatus).toBe("rejected");
   });
 
@@ -438,7 +430,7 @@ describe("compareFields — overall status", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: true,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     expect(result.overallStatus).toBe("needs_review");
   });
 
@@ -448,7 +440,7 @@ describe("compareFields — overall status", () => {
       isAlcoholLabel: false,
       brandName: "Test",
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     expect(result.overallStatus).toBe("rejected");
   });
 
@@ -459,7 +451,7 @@ describe("compareFields — overall status", () => {
       governmentWarningAllCaps: true,
       governmentWarningBold: true,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     expect(result.overallStatus).toBe("needs_review");
   });
 });
@@ -472,7 +464,7 @@ describe("compareFields — beverage type", () => {
   it("matches same beverage type", () => {
     const app = makeApplicationData({ beverageType: "wine" });
     const label = makeExtractedLabel({ beverageType: "wine" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "beverageType");
     expect(field?.status).toBe("match");
   });
@@ -480,7 +472,7 @@ describe("compareFields — beverage type", () => {
   it("mismatches different beverage type", () => {
     const app = makeApplicationData({ beverageType: "beer" });
     const label = makeExtractedLabel({ beverageType: "wine" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "beverageType");
     expect(field?.status).toBe("mismatch");
   });
@@ -488,7 +480,7 @@ describe("compareFields — beverage type", () => {
   it("returns not_found when AI cannot determine type", () => {
     const app = makeApplicationData({ beverageType: "beer" });
     const label = makeExtractedLabel({ beverageType: null });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "beverageType");
     expect(field?.status).toBe("not_found");
   });
@@ -508,7 +500,7 @@ describe("compareFields — government warning case variations", () => {
       governmentWarningAllCaps: null,
       governmentWarningBold: null,
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "governmentWarning");
     expect(field?.status).toBe("mismatch");
     expect(field?.explanation).toContain("case differences");
@@ -523,7 +515,7 @@ describe("compareFields — alcohol content exact matching", () => {
   it("matches ABV to Proof cross-conversion exactly", () => {
     const app = makeApplicationData({ alcoholContent: "80 Proof" });
     const label = makeExtractedLabel({ alcoholContent: "40% ABV" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "alcoholContent");
     expect(field?.status).toBe("match");
   });
@@ -531,15 +523,11 @@ describe("compareFields — alcohol content exact matching", () => {
   it("mismatches on real ABV difference", () => {
     const app = makeApplicationData({ alcoholContent: "5% ABV" });
     const label = makeExtractedLabel({ alcoholContent: "5.1% ABV" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "alcoholContent");
     expect(field?.status).toBe("mismatch");
   });
 });
-
-// ---------------------------------------------------------------------------
-// (net contents cross-unit tests removed — text comparison only)
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // compareFields — bare number inference escalation
@@ -549,7 +537,7 @@ describe("compareFields — bare number inference", () => {
   it("escalates matching ABV bare number to warning", () => {
     const app = makeApplicationData({ alcoholContent: "40" });
     const label = makeExtractedLabel({ alcoholContent: "40% ABV" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "alcoholContent");
     expect(field?.status).toBe("warning");
     expect(field?.explanation).toContain("bare number");
@@ -558,7 +546,7 @@ describe("compareFields — bare number inference", () => {
   it("mismatches net contents bare number vs with unit", () => {
     const app = makeApplicationData({ netContents: "750" });
     const label = makeExtractedLabel({ netContents: "750 mL" });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "netContents");
     expect(field?.status).toBe("mismatch");
   });
@@ -576,7 +564,7 @@ describe("compareFields — address word boundary matching", () => {
     const label = makeExtractedLabel({
       producerAddress: "456 Mainstream Blvd, Springfield, IL",
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "producerAddress");
     expect(field?.status).toBe("mismatch");
   });
@@ -588,7 +576,7 @@ describe("compareFields — address word boundary matching", () => {
     const label = makeExtractedLabel({
       producerAddress: "Springfield, IL 62701, 123 Main Street",
     });
-    const result = compareFields(app, label, 0);
+    const result = compareFields(app, label);
     const field = result.fields.find((f) => f.key === "producerAddress");
     expect(field?.status).toBe("match");
   });

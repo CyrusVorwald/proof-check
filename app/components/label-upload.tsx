@@ -2,16 +2,8 @@ import { Loader2, Upload, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
-
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_MB = 5;
-const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-
-export interface SampleLabel {
-  label: string;
-  url: string;
-  fileName: string;
-}
+import type { SampleLabel } from "~/lib/types";
+import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE, MAX_FILE_SIZE_MB } from "~/lib/utils";
 
 interface LabelUploadProps {
   onFileChange?: (hasFile: boolean) => void;
@@ -36,13 +28,13 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
         return;
       }
 
-      if (!ACCEPTED_TYPES.includes(file.type)) {
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
         setError("Please upload a JPG, PNG, or WebP image.");
         return;
       }
 
-      if (file.size > MAX_SIZE_BYTES) {
-        setError(`File must be smaller than ${MAX_SIZE_MB}MB.`);
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`File must be smaller than ${MAX_FILE_SIZE_MB}MB.`);
         return;
       }
 
@@ -175,7 +167,7 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
             <div>
               <p className="text-sm font-medium">Click to upload or drag and drop</p>
               <p className="text-xs text-muted-foreground">
-                JPG, PNG, or WebP (max {MAX_SIZE_MB}MB)
+                JPG, PNG, or WebP (max {MAX_FILE_SIZE_MB}MB)
               </p>
             </div>
             {sampleLabels && sampleLabels.length > 0 && (
