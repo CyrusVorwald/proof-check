@@ -145,8 +145,12 @@ export function BatchUpload({
               ? "border-destructive"
               : "border-muted-foreground/25 hover:border-primary/50"
         }`}
-        onClick={() => inputRef.current?.click()}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          inputRef.current?.click();
+        }}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             inputRef.current?.click();
@@ -179,12 +183,7 @@ export function BatchUpload({
             </p>
           </div>
           {files.length === 0 && sampleLabels && sampleLabels.length > 0 && (
-            <div
-              role="group"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-              className="pt-3 mt-3 border-t border-muted-foreground/15"
-            >
+            <div className="pt-3 mt-3 border-t border-muted-foreground/15">
               <p className="text-xs text-muted-foreground mb-2">Or try sample labels:</p>
               <div className="flex justify-center gap-3">
                 {sampleLabels.map((sample) => (

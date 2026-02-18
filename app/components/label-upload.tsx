@@ -120,8 +120,12 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
                 ? "border-muted"
                 : "border-muted-foreground/25 hover:border-primary/50"
         }`}
-        onClick={() => inputRef.current?.click()}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          inputRef.current?.click();
+        }}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             inputRef.current?.click();
@@ -148,15 +152,7 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
               className="mx-auto max-h-48 rounded-md object-contain"
             />
             <p className="text-sm text-muted-foreground truncate">{fileName}</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClear();
-              }}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={handleClear}>
               <X className="size-3" />
               Remove
             </Button>
@@ -171,12 +167,7 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
               </p>
             </div>
             {sampleLabels && sampleLabels.length > 0 && (
-              <div
-                role="group"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-                className="pt-3 mt-3 border-t border-muted-foreground/15"
-              >
+              <div className="pt-3 mt-3 border-t border-muted-foreground/15">
                 <p className="text-xs text-muted-foreground mb-2">Or try a sample label:</p>
                 <div className="flex justify-center gap-3">
                   {sampleLabels.map((sample) => (
