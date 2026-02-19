@@ -1,5 +1,5 @@
 import { Loader2, Upload, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import type { SampleLabel } from "~/lib/types";
@@ -23,9 +23,16 @@ export function BatchUpload({
   sampleLabels?: SampleLabel[];
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const sampleAbortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      sampleAbortRef.current?.abort();
+    };
+  }, []);
 
   const addFiles = useCallback(
     (fileList: FileList) => {
@@ -51,6 +58,10 @@ export function BatchUpload({
 
       const combined = [...files, ...newEntries];
       if (combined.length > MAX_FILES) {
+        const discarded = combined.slice(MAX_FILES);
+        for (const entry of discarded) {
+          URL.revokeObjectURL(entry.preview);
+        }
         setError(
           `Maximum ${MAX_FILES} files allowed. ${combined.length - MAX_FILES} file(s) were not added.`,
         );
@@ -98,12 +109,16 @@ export function BatchUpload({
 
   const loadSamples = useCallback(
     async (samples: SampleLabel[]) => {
+      sampleAbortRef.current?.abort();
+      const controller = new AbortController();
+      sampleAbortRef.current = controller;
+
       setLoadingSamples(true);
       setError(null);
       try {
         const entries: FileEntry[] = await Promise.all(
           samples.map(async (sample) => {
-            const response = await fetch(sample.url);
+            const response = await fetch(sample.url, { signal: controller.signal });
             const blob = await response.blob();
             const file = new File([blob], sample.fileName, { type: blob.type });
             return {
@@ -114,7 +129,8 @@ export function BatchUpload({
           }),
         );
         onFilesChange([...files, ...entries]);
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setError("Failed to load sample images. Please try again.");
       } finally {
         setLoadingSamples(false);

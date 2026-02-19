@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 import { z } from "zod";
 import { ApplicationForm } from "~/components/application-form";
@@ -125,13 +125,14 @@ async function fetchExtract(
   file: File,
   model: string,
   onRateLimited?: (waiting: boolean) => void,
+  signal?: AbortSignal,
 ): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const fd = new FormData();
     fd.set("file", file);
     fd.set("model", model);
 
-    const response = await fetch("/api/extract", { method: "POST", body: fd });
+    const response = await fetch("/api/extract", { method: "POST", body: fd, signal });
 
     if (response.status === 429 && attempt < MAX_RETRIES) {
       const retryAfter = response.headers.get("Retry-After");
@@ -304,6 +305,23 @@ export default function Batch() {
     extractedLabels,
   } = state;
 
+  // Revoke blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      for (const entry of files) {
+        URL.revokeObjectURL(entry.preview);
+      }
+    };
+  }, [files]);
+
+  // Abort in-flight extractions on unmount
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   // Track the last-used model for retries
   const lastModelRef = useRef("haiku");
 
@@ -350,6 +368,9 @@ export default function Batch() {
     const model = (formData.get("model") as string) || "haiku";
     lastModelRef.current = model;
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     dispatch({ type: "START_EXTRACTION", total: files.length });
 
     const results: BatchExtractItemResult[] = new Array(files.length);
@@ -362,8 +383,11 @@ export default function Batch() {
         const startTime = Date.now();
 
         try {
-          const response = await fetchExtract(entry.file, model, (waiting) =>
-            dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+          const response = await fetchExtract(
+            entry.file,
+            model,
+            (waiting) => dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+            controller.signal,
           );
 
           if (!response.ok) {
@@ -387,6 +411,7 @@ export default function Batch() {
             };
           }
         } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
           results[index] = {
             fileName: entry.file.name,
             fileId: entry.id,
@@ -431,6 +456,9 @@ export default function Batch() {
 
     if (failedItems.length === 0) return;
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const model = lastModelRef.current;
     const updatedResults = [...extractResults];
     let completed = extractResults.filter((r) => !r.error).length;
@@ -446,8 +474,11 @@ export default function Batch() {
         const index = updatedResults.findIndex((r) => r.fileId === failed.fileId);
 
         try {
-          const response = await fetchExtract(fileEntry.file, model, (waiting) =>
-            dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+          const response = await fetchExtract(
+            fileEntry.file,
+            model,
+            (waiting) => dispatch({ type: waiting ? "RATE_LIMIT_WAIT" : "RATE_LIMIT_RESUME" }),
+            controller.signal,
           );
 
           if (!response.ok) {
@@ -468,6 +499,7 @@ export default function Batch() {
             };
           }
         } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
           updatedResults[index] = {
             ...failed,
             processingTimeMs: Date.now() - startTime,

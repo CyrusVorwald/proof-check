@@ -1,5 +1,5 @@
 import { Loader2, Upload, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import type { SampleLabel } from "~/lib/types";
@@ -12,11 +12,20 @@ interface LabelUploadProps {
 
 export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const readerRef = useRef<FileReader | null>(null);
+  const sampleAbortRef = useRef<AbortController | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSample, setLoadingSample] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      readerRef.current?.abort();
+      sampleAbortRef.current?.abort();
+    };
+  }, []);
 
   const validateAndSetFile = useCallback(
     (file: File | null) => {
@@ -40,7 +49,9 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
 
       setFileName(file.name);
       onFileChange?.(true);
+      readerRef.current?.abort();
       const reader = new FileReader();
+      readerRef.current = reader;
       reader.onload = (e) => setPreview(e.target?.result as string);
       reader.readAsDataURL(file);
     },
@@ -84,10 +95,14 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
   };
 
   const selectSample = async (sample: SampleLabel) => {
+    sampleAbortRef.current?.abort();
+    const controller = new AbortController();
+    sampleAbortRef.current = controller;
+
     setLoadingSample(sample.label);
     setError(null);
     try {
-      const response = await fetch(sample.url);
+      const response = await fetch(sample.url, { signal: controller.signal });
       const blob = await response.blob();
       const file = new File([blob], sample.fileName, { type: blob.type });
       if (inputRef.current) {
@@ -96,7 +111,8 @@ export function LabelUpload({ onFileChange, sampleLabels }: LabelUploadProps) {
         inputRef.current.files = dt.files;
       }
       validateAndSetFile(file);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Failed to load sample image. Please try again.");
     } finally {
       setLoadingSample(null);
